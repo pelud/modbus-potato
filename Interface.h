@@ -6,18 +6,11 @@
 //
 #ifndef __ModbusPotato_Interface_h__
 #define __ModbusPotato_Interface_h__
-#include <stdint.h>
-#ifdef ARDUINO
-#include <Arduino.h>
-#elif _MSC_VER
-#include <Windows.h>
-#endif
+#include "Types.h"
 namespace ModbusPotato
 {
 #ifdef ARDUINO
-typedef unsigned long system_tick_t;
-#elif _MSC_VER
-typedef DWORD system_tick_t;
+    static inline uint16_t htons(uint16_t value) { return (value << 8) | (value >> 8); }
 #endif
 
     /// <summary>
@@ -108,18 +101,45 @@ typedef DWORD system_tick_t;
     };
 
     /// <summary>
+    /// Handles frame requests from the framer.
+    /// </summary>
+    class IFrameHandler
+    {
+    public:
+        virtual ~IFrameHandler() {}
+
+        /// <summary>
+        /// Called when a new frame has been received by the remote.
+        /// </summary>
+        virtual void frame_ready() = 0;
+    };
+
+    /// <summary>
     /// This interface implements the framing protocol for Modbus.
     /// </summary>
+    /// <remarks>
+    /// To use this object, the setup() method must be called to setup the
+    /// time-outs, and on slaves the address must be set using the
+    /// set_station_address() method.  The frame received callback must also
+    /// be set using the set_frame_ready_callback() method if the application
+    /// layer requires it.
+    /// </remarks>
     class IFramer
     {
     public:
         virtual ~IFramer() {}
 
         /// <summary>
+        /// Sets the handler interface for various events.
+        /// </summary>
+        virtual void set_handler(IFrameHandler* handler) = 0;
+
+        /// <summary>
         /// Returns the station address.
         /// </summary>
         /// <remarks>
-        /// If this is 0 then all addresses will be matched.
+        /// This is the local slave address, not the address of the received or
+        /// transmitted slave.  If this is 0 then all addresses will be matched.
         /// </remarks>
         virtual uint8_t station_address() const = 0;
 
@@ -127,19 +147,13 @@ typedef DWORD system_tick_t;
         /// Sets the station address.
         /// </summary>
         /// <remarks>
-        /// If this is not set or is set to 0 then all addresses will be matched.
+        /// This is the local slave address, not the address of the received or
+        /// transmitted slave.  If this is 0 then all addresses will be matched.
+        ///
+        /// This must be set to 0 on the master, and set to the slave address
+        /// on slaves.
         /// </remarks>
         virtual void set_station_address(uint8_t address) = 0;
-
-        /// <summary>
-        /// Sets the callback to be executed when a frame is ready.
-        /// </summary>
-        /// <remarks>
-        /// This will only be called from the poll() method, and thus will
-        /// automatically take care of updating the timers if the send() or
-        /// finishied() methods are used within the callback.
-        /// </remarks>
-        virtual void set_frame_ready_callback(void (*cb)(void* obj), void* obj) = 0;
 
         /// <summary>
         /// Handles any timeouts and transfers more data as needed.
@@ -171,7 +185,8 @@ typedef DWORD system_tick_t;
         /// </returns>
         /// <remarks>
         /// If data reception is already in progress, this method will fail and
-        /// return false.
+        /// return false.  The return result must be checked to ensure that the
+        /// application does not over-write incoming data.
         ///
         /// After a new transmission is started, it must be completed either by
         /// calling the send() method to send the data or the finished() method
@@ -183,6 +198,11 @@ typedef DWORD system_tick_t;
         /// Begin transmission of the buffer to the given address.
         /// </summary>
         /// <remarks>
+        /// Before calling send(), the data buffer must be reserved using the
+        /// begin_send() method.  If any data is received while the application
+        /// has the buffer locked, the information in the buffer may be
+        /// discarded.
+
         /// The poll() method must also be invoked with the rules listed in the
         /// remarks after calling this method.
         /// </remarks>
@@ -211,11 +231,21 @@ typedef DWORD system_tick_t;
         /// <summary>
         /// Returns the station address for the PDU, or 0 if broadcast or point-to-point.
         /// </summary>
+        /// <remarks>
+        /// This is the address of the received or transmitted frame, not the
+        /// local address of the slave.  See station_address() for the local
+        /// slave address.
+        /// </remarks>
         virtual uint8_t frame_address() const = 0;
 
         /// <summary>
         /// Sets the station address for the PDU, or 0 if broadcast or point-to-point.
         /// </summary>
+        /// <remarks>
+        /// This is the address of the received or transmitted frame, not the
+        /// local address of the slave.  See set_station_address() for the
+        /// local slave address.
+        /// </remarks>
         virtual void set_frame_address(uint8_t address) = 0;
 
         /// <summary>
@@ -255,28 +285,30 @@ typedef DWORD system_tick_t;
     };
 
     /// <summary>
-    /// Represents the slave protocol handling.
+    /// The interface to be implemented by the user application for handling slave requests.
     /// </summary>
-    class ISlave
+    /// <remarks>
+    /// This is used by the ISlave interface to execute the user code.
+    /// </remarks>
+    class ISlaveHandler
     {
     public:
-        virtual ~ISlave() {}
+        virtual ~ISlaveHandler() {}
 
         /// <summary>
-        /// Executes the frame ready callback.
-        /// </summary>
-        virtual void frame_ready() = 0;
-
-        /// <summary>
-        /// Helper to convert the C style callback on IFramer to an instance of this class.
+        /// Handles Modbus function 3: Read holding registers.
         /// </summary>
         /// <remarks>
-        /// This helper can be used as follows:
-        /// <pre>
-        /// framer->set_frame_ready_callback(&ISlave::frame_ready_callback, &slave);
-        /// </pre>
+        /// The value in the <paramref name="address"/> parameter is the raw
+        /// address number, not the modbus register number.  For example, a
+        /// value of 0 means the first holding register which modbus register
+        /// 40001.
         /// </remarks>
-        static void frame_ready_callback(void* obj) { ((ISlave*)obj)->frame_ready(); }
+        virtual modbus_exception_code::modbus_exception_code read_holding_registers(uint16_t address, uint16_t count, uint16_t* result) { return modbus_exception_code::illegal_function; }
+
+        virtual modbus_exception_code::modbus_exception_code write_multiple_registers(uint16_t address, uint16_t count, const uint16_t* values) { return modbus_exception_code::illegal_function; }
+
+        virtual modbus_exception_code::modbus_exception_code preset_single_register(uint16_t address, uint16_t value) { return write_multiple_registers(address, 1, &value); }
     };
 }
 #endif

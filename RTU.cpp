@@ -1,5 +1,3 @@
-// This class handles the RTU based protocol framing for modbus.
-//
 #include "RTU.h"
 #ifdef _MSC_VER
 #undef max
@@ -52,9 +50,8 @@ namespace ModbusPotato
     CRTU::CRTU(IStream* stream, ITimeProvider* timer)
         :   m_stream(stream)
         ,   m_timer(timer)
-        ,   m_frame_ready_callback()
-        ,   m_frame_ready_obj()
         ,   m_buffer_len()
+        ,   m_handler()
         ,   m_crc()
         ,   m_station_address()
         ,   m_frame_address()
@@ -274,8 +271,8 @@ namespace ModbusPotato
                     m_last_ticks = m_timer->ticks();
 
                     // execute the callback
-                    if (m_frame_ready_callback)
-                        m_frame_ready_callback(m_frame_ready_obj);
+                    if (m_handler)
+                        m_handler->frame_ready();
 
                     // evaluate the switch statement again in case something has changed
                     return poll(); // jump to the start of the function to re-evalutate entire switch statement

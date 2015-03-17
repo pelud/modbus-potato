@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <TargetName>DefaultTest</TargetName>
+    <TargetName>UnitTests</TargetName>
     <ProjectTypes>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}</ProjectTypes>
     <ProjectGUID>{D1C21ADE-3ED2-48A0-9FB3-1D275C26FB2C}</ProjectGUID>
     <Keyword>ManagedCProj</Keyword>
@@ -78,6 +78,7 @@
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
     <ClCompile Include="RTUTests.cpp" />
+    <ClCompile Include="SlaveTests.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

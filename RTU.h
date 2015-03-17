@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include "Interface.h"
 namespace ModbusPotato
 {
@@ -30,10 +29,9 @@ namespace ModbusPotato
         /// the inter-character delays.
         /// </remarks>
         void setup(unsigned long baud);
-
+        virtual void set_handler(IFrameHandler* handler) { m_handler = handler; }
         virtual uint8_t station_address() const { return m_station_address; }
         virtual void set_station_address(uint8_t address) { m_station_address = address; }
-        virtual void set_frame_ready_callback(void (*cb)(void* obj), void* obj) { m_frame_ready_callback = cb; }
         virtual unsigned long poll();
         virtual bool begin_send();
         virtual void send();
@@ -59,8 +57,7 @@ namespace ModbusPotato
         };
         IStream* m_stream;
         ITimeProvider* m_timer;
-        void (*m_frame_ready_callback)(void* obj);
-        void* m_frame_ready_obj;
+        IFrameHandler* m_handler;
         size_t m_buffer_len;
         uint8_t m_buffer[MAX_BUFFER];
         uint16_t m_crc;
