@@ -8,8 +8,10 @@ namespace ModbusPotato
 {
     // calculate the inter-character delay (T3.5 and T1.5) values
     #define CALC_INTER_CHAR_DELAY(f, baud) ( (f) * 11 / (baud) )
+    #ifdef _MSC_VER
     static_assert(CALC_INTER_CHAR_DELAY(3500000, 9600) == 4010, "invalid intercharacter delay calculation");
     static_assert(CALC_INTER_CHAR_DELAY(3500000, 300) == 128333, "invalid intercharacter delay calculation");
+    #endif
 
     // calculate the amount of time elapsed
     //
@@ -22,9 +24,11 @@ namespace ModbusPotato
     // as 0 - (-1), or 1.
     //
     #define ELAPSED(start, end) ((system_tick_t)(end) - (system_tick_t)(start))
+    #ifdef _MSC_VER
     static_assert(~(system_tick_t)0 > 0, "system_tick_t must be unsigned");
     static_assert((system_tick_t)-1 == ~(system_tick_t)0, "two's complement arithmetic required");
     static_assert(ELAPSED(~(system_tick_t)0, 0) == 1, "elapsed time roll-over check failed");
+    #endif
 
     // accumulate the next byte of the CRC
     enum { POLY = 0xa001 };
@@ -45,7 +49,7 @@ namespace ModbusPotato
         return crc;
     }
 
-    CRTU::CRTU(IStream* stream, ITimeProvider* timer, unsigned long baud)
+    CRTU::CRTU(IStream* stream, ITimeProvider* timer)
         :   m_stream(stream)
         ,   m_timer(timer)
         ,   m_frame_ready_callback()
@@ -66,6 +70,15 @@ namespace ModbusPotato
             return;
         }
 
+        // put some default values into the delays
+        setup(default_baud_rate);
+
+        // update the system tick count
+        m_last_ticks = m_timer->ticks();
+    }
+
+    void CRTU::setup(unsigned long baud)
+    {
         // calculate the intercharacter delays in microseconds
         unsigned int t3p5 = default_3t5_period;
         unsigned int t1p5 = default_1t5_period;
@@ -98,9 +111,6 @@ namespace ModbusPotato
         // make sure the delays are each at least 2 counts
         m_T3p5 = m_T3p5 < minimum_tick_count ? minimum_tick_count : m_T3p5;
         m_T1p5 = m_T1p5 < minimum_tick_count ? minimum_tick_count : m_T1p5;
-
-        // update the system tick count
-        m_last_ticks = m_timer->ticks();
     }
 
     unsigned long CRTU::poll()

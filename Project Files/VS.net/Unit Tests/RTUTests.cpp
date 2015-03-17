@@ -109,7 +109,8 @@ namespace UnitTests
         void TestRTUConstructor()
         {
             CDummyStream stream;
-            CRTU rtu(&stream, &stream, 9600);
+            CRTU rtu(&stream, &stream);
+            rtu.setup(9600);
             Assert::AreEqual(true, true);
         };
 
@@ -127,7 +128,9 @@ namespace UnitTests
 
             // parse the frames
             CDummyStream stream(items);
-            CRTU rtu(&stream, &stream, 9600);
+            CRTU rtu(&stream, &stream);
+            rtu.setup(9600);
+
             while (stream.ticks() < 10)
             {
                 rtu.poll();
@@ -149,9 +152,12 @@ namespace UnitTests
             // provide some junk to dump at 4ms
             items.push_back(std::tr1::make_tuple(4, std::string(0x200, 'a')));
 
-            // parse the frames
+            // create the rtu object
             CDummyStream stream(items);
-            CRTU rtu(&stream, &stream, 9600);
+            CRTU rtu(&stream, &stream);
+            rtu.setup(9600);
+
+            // parse the frames
             while (stream.ticks() < 10)
             {
                 rtu.poll();
@@ -166,7 +172,8 @@ namespace UnitTests
         void TestTransmitFrame()
         {
             CDummyStream stream;
-            CRTU rtu(&stream, &stream, 9600);
+            CRTU rtu(&stream, &stream);
+            rtu.setup(9600);
 
             // skip some ticks to wait for the initial dump
             while (stream.ticks() < 5)

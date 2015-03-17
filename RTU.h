@@ -8,6 +8,10 @@ namespace ModbusPotato
     /// <remarks>
     /// See the IFramer interface for a complete description of the public
     /// methods.
+    ///
+    /// The setup() method must be called with the correct baud rate before
+    /// using this class in order to calculate the proper inter-character and
+    /// inter-frame delays.
     /// </remarks>
     class CRTU : public IFramer
     {
@@ -15,12 +19,18 @@ namespace ModbusPotato
         /// <summary>
         /// Constructor for the RTU framer.
         /// </summary>
+        CRTU(IStream* stream, ITimeProvider* timer);
+
+        /// <summary>
+        /// Initialize any special values.
+        /// </summary>
         /// <remarks>
         /// Notice that this method does NOT setup the serial link (i.e.
         /// Serial.begin(...)).  The baud rate is only needed to calculate
         /// the inter-character delays.
         /// </remarks>
-        CRTU(IStream* stream, ITimeProvider* timer, unsigned long baud);
+        void setup(unsigned long baud);
+
         virtual uint8_t station_address() const { return m_station_address; }
         virtual void set_station_address(uint8_t address) { m_station_address = address; }
         virtual void set_frame_ready_callback(void (*cb)(void* obj), void* obj) { m_frame_ready_callback = cb; }
@@ -40,6 +50,7 @@ namespace ModbusPotato
         {
             CRC_LEN = 2,
             MAX_BUFFER = 256 - 1,
+            default_baud_rate = 19200,
             default_3t5_period = 1750, // T3.5 character timeout for high baud rates, in microseconds
             default_1t5_period = 750, // T1.5 character timeout for high baud rates, in microseconds
             minimum_tick_count = 2,

@@ -7,7 +7,9 @@
 #ifndef __ModbusPotato_Interface_h__
 #define __ModbusPotato_Interface_h__
 #include <stdint.h>
-#ifdef _MSC_VER
+#ifdef ARDUINO
+#include <Arduino.h>
+#elif _MSC_VER
 #include <Windows.h>
 #endif
 namespace ModbusPotato
