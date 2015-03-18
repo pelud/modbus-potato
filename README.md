@@ -5,7 +5,7 @@ Features:
  * object oriented C++
  * currently supports modbus RTU slave with read holding registers and write multiple registers
  * most methods and functions are unit tested
- * easy to use
+ * easy to use - in most cases just call the correct poll() method in the main loop
  * liberal license (MIT)
  * non-blocking state machine based RTU framer design
 ```
@@ -45,8 +45,7 @@ For class descriptions see the src/ModbusInterface.h file.
 
 This project follows the Arduino library format version 2, so you can select
 "Download ZIP" from the github page and then select the "Add Library..." option
-from the Arduino environment to easily import this library into your
-environment.
+from the Arduino environment to easily import this library.
 
 The "modpoll" command line utility is highly recommended for accessing slaves.
 It can be found here: http://www.modbusdriver.com/modpoll.html
