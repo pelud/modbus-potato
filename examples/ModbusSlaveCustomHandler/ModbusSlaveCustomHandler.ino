@@ -60,7 +60,8 @@ class CSlaveHandler : public ModbusPotato::CModbusSlaveHandlerBase
 // for Serial2, change to driver(&Serial2, &UCSR2A, &UCSR2B), etc
 static ModbusPotato::CModbusArduinoHardwareSerial driver(&Serial, &UCSR0A, &UCSR0B);
 static ModbusPotato::CModbusArduinoTimeProvider time_provider;
-static ModbusPotato::CModbusRTU rtu(&driver, &time_provider);
+static uint8_t m_rtu_buffer[MODBUS_DATA_BUFFER_SIZE];
+static ModbusPotato::CModbusRTU rtu(&driver, &time_provider, m_rtu_buffer, MODBUS_DATA_BUFFER_SIZE);
 static CSlaveHandler slave_handler;
 static ModbusPotato::CModbusSlave slave(&rtu, &slave_handler);
 

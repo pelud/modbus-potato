@@ -47,9 +47,11 @@ namespace ModbusPotato
         return crc;
     }
 
-    CModbusRTU::CModbusRTU(IStream* stream, ITimeProvider* timer)
+    CModbusRTU::CModbusRTU(IStream* stream, ITimeProvider* timer, uint8_t* buffer, size_t buffer_max)
         :   m_stream(stream)
         ,   m_timer(timer)
+        ,   m_buffer(buffer)
+        ,   m_buffer_max(buffer_max)
         ,   m_buffer_len()
         ,   m_handler()
         ,   m_crc()
@@ -61,7 +63,7 @@ namespace ModbusPotato
         ,   m_T3p5()
         ,   m_T1p5()
     {
-        if (!m_stream || !m_timer)
+        if (!m_stream || !m_timer || !m_buffer || m_buffer_max < 3)
         {
             m_state = state_exception;
             return;
@@ -210,7 +212,7 @@ namespace ModbusPotato
                 system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
 
                 // check if there are any waiting characters
-                if (int ec = m_stream->read(m_buffer + m_buffer_len, MAX_BUFFER - m_buffer_len))
+                if (int ec = m_stream->read(m_buffer + m_buffer_len, m_buffer_max - m_buffer_len))
                 {
                     // check for comm errors or if the inter-character delay has been exceeded
                     //
@@ -235,7 +237,7 @@ namespace ModbusPotato
                 }
 
                 // check if there is still input even after we have filled the buffer
-                if (MAX_BUFFER == m_buffer_len && m_stream->read(NULL, (size_t)-1))
+                if (m_buffer_max == m_buffer_len && m_stream->read(NULL, (size_t)-1))
                 {
                     // if so, reset the timer and enter the 'dump' state.
                     m_last_ticks = m_timer->ticks();

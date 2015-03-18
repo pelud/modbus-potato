@@ -18,7 +18,7 @@ namespace ModbusPotato
         /// <summary>
         /// Constructor for the RTU framer.
         /// </summary>
-        CModbusRTU(IStream* stream, ITimeProvider* timer);
+        CModbusRTU(IStream* stream, ITimeProvider* timer, uint8_t* buffer, size_t buffer_max);
 
         /// <summary>
         /// Initialize any special values.
@@ -43,12 +43,11 @@ namespace ModbusPotato
         virtual uint8_t* buffer() { return m_buffer; }
         virtual size_t buffer_len() const { return m_buffer_len; }
         virtual void set_buffer_len(size_t len) { m_buffer_len = len; }
-        virtual size_t buffer_max() const { return MAX_BUFFER - CRC_LEN; }
+        virtual size_t buffer_max() const { return m_buffer_max; }
     private:
         enum
         {
             CRC_LEN = 2,
-            MAX_BUFFER = 256 - 1,
             default_baud_rate = 19200,
             default_3t5_period = 1750, // T3.5 character timeout for high baud rates, in microseconds
             default_1t5_period = 750, // T1.5 character timeout for high baud rates, in microseconds
@@ -59,7 +58,8 @@ namespace ModbusPotato
         IStream* m_stream;
         ITimeProvider* m_timer;
         IFrameHandler* m_handler;
-        size_t m_buffer_len;
+        uint8_t* m_buffer;
+        size_t m_buffer_len, m_buffer_max;
         uint16_t m_crc;
         uint8_t m_station_address, m_frame_address;
         uint8_t m_buffer_tx_pos;
@@ -80,6 +80,5 @@ namespace ModbusPotato
         state_type m_state;
         system_tick_t m_last_ticks;
         system_tick_t m_T3p5, m_T1p5;
-        uint8_t m_buffer[MAX_BUFFER];
     };
 }

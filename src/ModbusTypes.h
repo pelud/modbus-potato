@@ -8,6 +8,7 @@
 #elif _MSC_VER
 #include <Windows.h>
 #endif
+#define MODBUS_DATA_BUFFER_SIZE (255)
 namespace ModbusPotato
 {
 #ifdef ARDUINO
