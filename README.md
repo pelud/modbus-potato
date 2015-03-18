@@ -56,24 +56,24 @@ C:\Windows (for Windows) or /usr/local/bin (for Linux).
 
 You can read the a holding register (4xxxxx) with modpoll using the
 following command line:
-modpoll -m rtu -a <slave address> -t 4 -r <address> -b <baud> <COMx:>
+`modpoll -m rtu -a <slave address> -t 4 -r <address> -b <baud> <COMx:>`
 
 You can write to a register using the following:
-modpoll -m rtu -a <slave address> -t 4 -r <address> -b <baud> <COMx:> <value>
+`modpoll -m rtu -a <slave address> -t 4 -r <address> -b <baud> <COMx:> <value>`
 
-Replace <slave address> with the address of your slave (i.e. 1), <register> 
-with the 1 based register number (i.e. 1=40001), <baud> with the baud rate
-(i.e. 19200), <COMx:> with your COM port (i.e. COM4: or /dev/ttyS1) and
-<value> with the value to write.  You may omit '-m rtu' on if the device
+Replace `<slave address>` with the address of your slave (i.e. 1), `<register>` 
+with the 1 based register number (i.e. 1=40001), `<baud>` with the baud rate
+(i.e. 19200), `<COMx:>` with your COM port (i.e. COM4: or /dev/ttyS1) and
+`<value>` with the value to write.  You may omit '-m rtu' on if the device
 name starts with COM, and you may omit '-b <baud>' if the baud rate is
 19200.
 
 For example, to read the first holding register (40001) from slave id #1 on
 COM3: at 19200 baud, you can use the following:
-modpoll -1 -a 1 -t 4 -r 1 COM3:
+`modpoll -1 -a 1 -t 4 -r 1 COM3:`
 
 To write the value 100 to the above register, use the following:
-modpoll -a 1 -t 4 -r 1 COM3: 100
+`modpoll -a 1 -t 4 -r 1 COM3: 100`
 
 Please be aware that modpoll will assert the DTR line when it opens the port,
 which will usually cause an Arduino to reset.  You may need to disable the DTR
@@ -84,5 +84,5 @@ to the TCP socket instead.  If you use a serial to tcp bridge, change the
 
 To use modpoll to read the above register through piracom running on the local
 machine, use:
-modpoll -1 -m enc -a 1 -t 4 -r 1 localhost
+`modpoll -1 -m enc -a 1 -t 4 -r 1 localhost`
 
