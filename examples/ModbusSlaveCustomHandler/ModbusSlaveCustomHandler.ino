@@ -1,3 +1,5 @@
+// This example demonstrates a custom handler for a Modbus slave device.
+//
 #include <ModbusRTU.h>
 #include <ModbusSlave.h>
 #include <ModbusSlaveHandlerBase.h>

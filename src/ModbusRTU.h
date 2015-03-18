@@ -60,7 +60,6 @@ namespace ModbusPotato
         ITimeProvider* m_timer;
         IFrameHandler* m_handler;
         size_t m_buffer_len;
-        uint8_t m_buffer[MAX_BUFFER];
         uint16_t m_crc;
         uint8_t m_station_address, m_frame_address;
         uint8_t m_buffer_tx_pos;
@@ -81,5 +80,6 @@ namespace ModbusPotato
         state_type m_state;
         system_tick_t m_last_ticks;
         system_tick_t m_T3p5, m_T1p5;
+        uint8_t m_buffer[MAX_BUFFER];
     };
 }
