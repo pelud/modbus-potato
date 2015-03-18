@@ -64,8 +64,8 @@ You can write to a register using the following:
 Replace `<slave address>` with the address of your slave (i.e. 1), `<register>` 
 with the 1 based register number (i.e. 1=40001), `<baud>` with the baud rate
 (i.e. 19200), `<COMx:>` with your COM port (i.e. COM4: or /dev/ttyS1) and
-`<value>` with the value to write.  You may omit '-m rtu' on if the device
-name starts with COM, and you may omit '-b <baud>' if the baud rate is
+`<value>` with the value to write.  You may omit `-m rtu` on if the device
+name starts with COM, and you may omit `-b <baud>` if the baud rate is
 19200.
 
 For example, to read the first holding register (40001) from slave id #1 on
@@ -80,7 +80,7 @@ which will usually cause an Arduino to reset.  You may need to disable the DTR
 reset support on the board, or use a serial to TCP bridge program like piracom
 (http://www.pira.cz/show.asp?art=piracom) which keeps the port open and connect
 to the TCP socket instead.  If you use a serial to tcp bridge, change the
-"-m rtu" command line switch to "-m enc".
+`-m rtu` command line switch to `-m enc`.
 
 To use modpoll to read the above register through piracom running on the local
 machine, use:
