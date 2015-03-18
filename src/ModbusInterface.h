@@ -6,7 +6,7 @@
 //
 #ifndef __ModbusPotato_Interface_h__
 #define __ModbusPotato_Interface_h__
-#include "Types.h"
+#include "ModbusTypes.h"
 namespace ModbusPotato
 {
 #ifdef ARDUINO

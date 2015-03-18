@@ -1,13 +1,13 @@
-#include "Interface.h"
+#include "ModbusInterface.h"
 namespace ModbusPotato
 {
     /// <summary>
     /// This class implements a basic Modbus slave interface.
     /// </summary>
-    class CSlave : public IFrameHandler
+    class CModbusSlave : public IFrameHandler
     {
     public:
-        CSlave(IFramer* framer, ISlaveHandler* handler);
+        CModbusSlave(IFramer* framer, ISlaveHandler* handler);
         virtual void frame_ready();
     private:
         IFramer* m_framer;

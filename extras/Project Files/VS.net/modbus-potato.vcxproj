@@ -76,15 +76,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\src\Interface.h" />
-    <ClInclude Include="..\..\..\src\RTU.h" />
-    <ClInclude Include="..\..\..\src\Slave.h" />
-    <ClInclude Include="..\..\..\src\SlaveHandlerBase.h" />
-    <ClInclude Include="..\..\..\src\Types.h" />
+    <ClInclude Include="..\..\..\src\ModbusInterface.h" />
+    <ClInclude Include="..\..\..\src\ModbusRTU.h" />
+    <ClInclude Include="..\..\..\src\ModbusSlave.h" />
+    <ClInclude Include="..\..\..\src\ModbusSlaveHandlerBase.h" />
+    <ClInclude Include="..\..\..\src\ModbusTypes.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\src\RTU.cpp" />
-    <ClCompile Include="..\..\..\src\Slave.cpp" />
+    <ClCompile Include="..\..\..\src\ModbusRTU.cpp" />
+    <ClCompile Include="..\..\..\src\ModbusSlave.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

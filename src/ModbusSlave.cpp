@@ -1,13 +1,13 @@
-#include "Slave.h"
+#include "ModbusSlave.h"
 namespace ModbusPotato
 {
-    CSlave::CSlave(IFramer* framer, ISlaveHandler* handler)
+    CModbusSlave::CModbusSlave(IFramer* framer, ISlaveHandler* handler)
         :   m_framer(framer)
         ,   m_handler(handler)
     {
     }
 
-    void CSlave::frame_ready()
+    void CModbusSlave::frame_ready()
     {
         // check if this is a broadcast or missing the function code
         if (!m_framer->frame_address() || !m_framer->buffer_len())

@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "../../../../src/RTU.h"
+#include "../../../../src/ModbusRTU.h"
 #include <stdexcept>
 #include <vector>
 #include <tuple>
@@ -109,7 +109,7 @@ namespace UnitTests
         void TestRTUConstructor()
         {
             CDummyStream stream;
-            CRTU rtu(&stream, &stream);
+            CModbusRTU rtu(&stream, &stream);
             rtu.setup(9600);
             Assert::AreEqual(true, true);
         };
@@ -128,7 +128,7 @@ namespace UnitTests
 
             // parse the frames
             CDummyStream stream(items);
-            CRTU rtu(&stream, &stream);
+            CModbusRTU rtu(&stream, &stream);
             rtu.setup(9600);
 
             while (stream.ticks() < 10)
@@ -154,7 +154,7 @@ namespace UnitTests
 
             // create the rtu object
             CDummyStream stream(items);
-            CRTU rtu(&stream, &stream);
+            CModbusRTU rtu(&stream, &stream);
             rtu.setup(9600);
 
             // parse the frames
@@ -172,7 +172,7 @@ namespace UnitTests
         void TestTransmitFrame()
         {
             CDummyStream stream;
-            CRTU rtu(&stream, &stream);
+            CModbusRTU rtu(&stream, &stream);
             rtu.setup(9600);
 
             // skip some ticks to wait for the initial dump

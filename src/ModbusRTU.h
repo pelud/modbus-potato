@@ -1,4 +1,4 @@
-#include "Interface.h"
+#include "ModbusInterface.h"
 namespace ModbusPotato
 {
     /// <summary>
@@ -12,13 +12,13 @@ namespace ModbusPotato
     /// using this class in order to calculate the proper inter-character and
     /// inter-frame delays.
     /// </remarks>
-    class CRTU : public IFramer
+    class CModbusRTU : public IFramer
     {
     public:
         /// <summary>
         /// Constructor for the RTU framer.
         /// </summary>
-        CRTU(IStream* stream, ITimeProvider* timer);
+        CModbusRTU(IStream* stream, ITimeProvider* timer);
 
         /// <summary>
         /// Initialize any special values.

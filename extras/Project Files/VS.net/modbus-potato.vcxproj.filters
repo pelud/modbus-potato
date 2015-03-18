@@ -15,27 +15,27 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\src\Interface.h">
+    <ClInclude Include="..\..\..\src\ModbusInterface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\RTU.h">
+    <ClInclude Include="..\..\..\src\ModbusRTU.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\Slave.h">
+    <ClInclude Include="..\..\..\src\ModbusSlave.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\SlaveHandlerBase.h">
+    <ClInclude Include="..\..\..\src\ModbusSlaveHandlerBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\Types.h">
+    <ClInclude Include="..\..\..\src\ModbusTypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\src\RTU.cpp">
+    <ClCompile Include="..\..\..\src\ModbusRTU.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\Slave.cpp">
+    <ClCompile Include="..\..\..\src\ModbusSlave.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

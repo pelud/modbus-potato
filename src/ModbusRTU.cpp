@@ -1,4 +1,4 @@
-#include "RTU.h"
+#include "ModbusRTU.h"
 #ifdef _MSC_VER
 #undef max
 #endif
@@ -47,7 +47,7 @@ namespace ModbusPotato
         return crc;
     }
 
-    CRTU::CRTU(IStream* stream, ITimeProvider* timer)
+    CModbusRTU::CModbusRTU(IStream* stream, ITimeProvider* timer)
         :   m_stream(stream)
         ,   m_timer(timer)
         ,   m_buffer_len()
@@ -74,7 +74,7 @@ namespace ModbusPotato
         m_last_ticks = m_timer->ticks();
     }
 
-    void CRTU::setup(unsigned long baud)
+    void CModbusRTU::setup(unsigned long baud)
     {
         // calculate the intercharacter delays in microseconds
         unsigned int t3p5 = default_3t5_period;
@@ -110,7 +110,7 @@ namespace ModbusPotato
         m_T1p5 = m_T1p5 < minimum_tick_count ? minimum_tick_count : m_T1p5;
     }
 
-    unsigned long CRTU::poll()
+    unsigned long CModbusRTU::poll()
     {
         // state machine for handling incoming data
         //
@@ -447,7 +447,7 @@ namespace ModbusPotato
         return 0;
     }
 
-    bool CRTU::begin_send()
+    bool CModbusRTU::begin_send()
     {
         // make sure we can begin
         if (m_state != state_idle && m_state != state_frame_ready && m_state != state_queue)
@@ -458,7 +458,7 @@ namespace ModbusPotato
         return true;
     }
 
-    void CRTU::send()
+    void CModbusRTU::send()
     {
         // sanity check
         if (m_buffer_len >= buffer_max())
@@ -498,7 +498,7 @@ namespace ModbusPotato
         }
     }
 
-    void CRTU::finished()
+    void CModbusRTU::finished()
     {
         switch (m_state)
         {

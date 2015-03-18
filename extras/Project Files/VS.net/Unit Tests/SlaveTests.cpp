@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "../../../../src/Slave.h"
-#include "../../../../src/SlaveHandlerBase.h"
+#include "../../../../src/ModbusSlave.h"
+#include "../../../../src/ModbusSlaveHandlerBase.h"
 #include <algorithm>
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -45,7 +45,7 @@ namespace UnitTests
         uint8_t m_buffer[256];
     };
 
-    class CSlaveHandler : public ModbusPotato::CSlaveHandlerBase
+    class CSlaveHandler : public ModbusPotato::CModbusSlaveHandlerBase
     {
     public:
         CSlaveHandler()
@@ -87,7 +87,7 @@ namespace UnitTests
 		void TestSlaveConstructor()
 		{
             CFramerDummy framer;
-            ModbusPotato::CSlave slave(&framer, NULL);
+            ModbusPotato::CModbusSlave slave(&framer, NULL);
 		}
 
         [TestMethod]
@@ -95,7 +95,7 @@ namespace UnitTests
 		{
             // create the slave object
             CFramerDummy framer;
-            ModbusPotato::CSlave slave(&framer, NULL);
+            ModbusPotato::CModbusSlave slave(&framer, NULL);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC03.htm
@@ -120,7 +120,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CSlave slave(&framer, &handler);
+            ModbusPotato::CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC03.htm
@@ -153,7 +153,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CSlave slave(&framer, &handler);
+            ModbusPotato::CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC06.htm
@@ -184,7 +184,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CSlave slave(&framer, &handler);
+            ModbusPotato::CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC16.htm
