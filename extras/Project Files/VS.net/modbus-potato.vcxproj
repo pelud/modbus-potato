@@ -76,15 +76,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\Interface.h" />
-    <ClInclude Include="..\..\src\RTU.h" />
-    <ClInclude Include="..\..\src\Slave.h" />
-    <ClInclude Include="..\..\src\Types.h" />
+    <ClInclude Include="..\..\..\src\Interface.h" />
+    <ClInclude Include="..\..\..\src\RTU.h" />
+    <ClInclude Include="..\..\..\src\Slave.h" />
+    <ClInclude Include="..\..\..\src\SlaveHandlerBase.h" />
+    <ClInclude Include="..\..\..\src\Types.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\RTU.cpp" />
-    <ClCompile Include="..\..\src\Slave.cpp" />
-    <ClCompile Include="..\..\src\SlaveHandlerBase.h" />
+    <ClCompile Include="..\..\..\src\RTU.cpp" />
+    <ClCompile Include="..\..\..\src\Slave.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

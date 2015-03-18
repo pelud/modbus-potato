@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "../../../src/Slave.h"
-#include "../../../src/SlaveHandlerBase.h"
+#include "../../../../src/Slave.h"
+#include "../../../../src/SlaveHandlerBase.h"
 #include <algorithm>
 #pragma comment(lib, "Ws2_32.lib")
 
