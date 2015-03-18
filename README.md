@@ -56,10 +56,10 @@ C:\Windows (for Windows) or /usr/local/bin (for Linux).
 
 You can read the a holding register (4xxxxx) with modpoll using the
 following command line:
-`modpoll -m rtu -a <slave address> -t 4 -r <address> -b <baud> <COMx:>`
+`modpoll -m rtu -a <slave address> -t 4 -r <register> -b <baud> <COMx:>`
 
 You can write to a register using the following:
-`modpoll -m rtu -a <slave address> -t 4 -r <address> -b <baud> <COMx:> <value>`
+`modpoll -m rtu -a <slave address> -t 4 -r <register> -b <baud> <COMx:> <value>`
 
 Replace `<slave address>` with the address of your slave (i.e. 1), `<register>` 
 with the 1 based register number (i.e. 1=40001), `<baud>` with the baud rate
