@@ -1,6 +1,7 @@
+// This example demonstrates a Modbus slave using a simple array of holding registers.
+//
 #include <ModbusRTU.h>
 #include <ModbusSlave.h>
-#include <ModbusSlaveHandlerBase.h>
 #include <ModbusArduinoHardwareSerial.h>
 #include <ModbusArduinoTimeProvider.h>
 #include <ModbusSlaveHandlerHolding.h>
@@ -15,12 +16,12 @@ union SlaveRegisterType
   struct
   {
     uint16_t brightness; // LED brightness, holding register 1 (40001)
-    uint16_t blink_rate; // LED blink rate, holding register 2 (40002)
+    uint16_t blink_rate; // LED blink rate, half cycle period in milliseconds, holding register 2 (40002)
   } tag;
   uint16_t array[SLAVE_REGISTER_COUNT];
 };
 
-static SlaveRegisterType m_registers = { { 0x8000, 1000 } };
+static SlaveRegisterType m_registers = { { 0x8000, 500 } }; // initialize with a 50% brightness and 1 second blink rate
 static uint16_t m_phaseaccum = 0; // phase accumulator for PWM on led
 
 // chain together the class implementations
