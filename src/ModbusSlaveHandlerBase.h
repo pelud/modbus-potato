@@ -2,7 +2,7 @@
 namespace ModbusPotato
 {
     /// <summary>
-    /// This class provides a base class which can be inherited to provide default handlers for each the modbus function types.
+    /// This class provides a base class which can be inherited to provide default handlers for slave implementations.
     /// </summary>
     class CModbusSlaveHandlerBase : public ISlaveHandler
     {

@@ -3,6 +3,10 @@ C++ Embedded Modbus Library
 
 Features:
  * object oriented C++
+ * currently supports modbus RTU slave with read holding registers and write multiple registers
+ * most methods and functions are unit tested
+ * easy to use
+ * liberal license (MIT)
  * non-blocking state machine based RTU framer design
 ```
                      -------------          -------------
@@ -36,3 +40,5 @@ Features:
 |                                                                     |
 +----Receive----------------------------------------------------------+
 ```
+
+For class descriptions see the src/ModbusInterface.h file.
