@@ -30,7 +30,7 @@ static uint16_t m_phaseaccum = 0; // phase accumulator for PWM on led
 static ModbusPotato::CModbusArduinoHardwareSerial driver(&Serial, &UCSR0A, &UCSR0B);
 static ModbusPotato::CModbusArduinoTimeProvider time_provider;
 static uint8_t m_rtu_buffer[MODBUS_DATA_BUFFER_SIZE];
-static ModbusPotato::CModbusRTU rtu(&driver, &time_provider, rtu_buffer, MODBUS_DATA_BUFFER_SIZE);
+static ModbusPotato::CModbusRTU rtu(&driver, &time_provider, m_rtu_buffer, MODBUS_DATA_BUFFER_SIZE);
 static ModbusPotato::CModbusSlaveHandlerHolding slave_handler(m_registers.array, SLAVE_REGISTER_COUNT);
 static ModbusPotato::CModbusSlave slave(&rtu, &slave_handler);
 
