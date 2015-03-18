@@ -10,7 +10,9 @@
 namespace ModbusPotato
 {
 #ifdef ARDUINO
+#ifndef htons
     static inline uint16_t htons(uint16_t value) { return (value << 8) | (value >> 8); }
+#endif
 #endif
 
     /// <summary>
@@ -289,6 +291,24 @@ namespace ModbusPotato
     /// </summary>
     /// <remarks>
     /// This is used by the ISlave interface to execute the user code.
+    ///
+    /// The 'address' parameter found in each of these methods is the raw
+    /// address number, not the modbus register number.  For example, a value
+    /// of 0 on read_holding_registers means the first holding register, which
+    /// modbus register 40001.
+    ///
+    /// Each function should return modbus_exception_code::ok if the request
+    /// executed successfully, or an appropriate error code if not.  This error
+    /// code will be returned as the one-byte response to the master.
+    ///
+    /// The address and count should be validated before processing the
+    /// request.  If either is found to be invalid, then the handler should
+    /// return modbus_exception_code::illegal_data_value.
+    ///
+    /// If the address and count are valid, but an error occurs when handling
+    /// the command, then the handler should return
+    /// modbus_exception_code::server_device_failure.
+    /// 
     /// </remarks>
     class ISlaveHandler
     {
@@ -296,19 +316,19 @@ namespace ModbusPotato
         virtual ~ISlaveHandler() {}
 
         /// <summary>
-        /// Handles Modbus function 3: Read holding registers.
+        /// Handles Modbus function 0x3: Read holding registers.
         /// </summary>
-        /// <remarks>
-        /// The value in the <paramref name="address"/> parameter is the raw
-        /// address number, not the modbus register number.  For example, a
-        /// value of 0 means the first holding register which modbus register
-        /// 40001.
-        /// </remarks>
-        virtual modbus_exception_code::modbus_exception_code read_holding_registers(uint16_t address, uint16_t count, uint16_t* result) { return modbus_exception_code::illegal_function; }
+        virtual modbus_exception_code::modbus_exception_code read_holding_registers(uint16_t address, uint16_t count, uint16_t* result) = 0;
 
-        virtual modbus_exception_code::modbus_exception_code write_multiple_registers(uint16_t address, uint16_t count, const uint16_t* values) { return modbus_exception_code::illegal_function; }
+        /// <summary>
+        /// Handles Modbus function 0x6: Preset single register.
+        /// </summary>
+        virtual modbus_exception_code::modbus_exception_code preset_single_register(uint16_t address, uint16_t value) = 0;
 
-        virtual modbus_exception_code::modbus_exception_code preset_single_register(uint16_t address, uint16_t value) { return write_multiple_registers(address, 1, &value); }
+        /// <summary>
+        /// Handles Modbus function 0x10: Write multiple registers.
+        /// </summary>
+        virtual modbus_exception_code::modbus_exception_code write_multiple_registers(uint16_t address, uint16_t count, const uint16_t* values) = 0;
     };
 }
 #endif

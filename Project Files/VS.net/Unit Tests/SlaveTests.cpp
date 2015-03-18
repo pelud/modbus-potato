@@ -1,5 +1,6 @@
 #include "stdafx.h"
-#include "../../../Slave.h"
+#include "../../../src/Slave.h"
+#include "../../../src/SlaveHandlerBase.h"
 #include <algorithm>
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -44,7 +45,7 @@ namespace UnitTests
         uint8_t m_buffer[256];
     };
 
-    class CSlaveHandler : public ModbusPotato::ISlaveHandler
+    class CSlaveHandler : public ModbusPotato::CSlaveHandlerBase
     {
     public:
         CSlaveHandler()
@@ -66,6 +67,7 @@ namespace UnitTests
             }
             return ModbusPotato::modbus_exception_code::ok;
         }
+        virtual ModbusPotato::modbus_exception_code::modbus_exception_code preset_single_register(uint16_t address, uint16_t value) { return write_multiple_registers(address, 1, &value); }
         virtual ModbusPotato::modbus_exception_code::modbus_exception_code write_multiple_registers(uint16_t address, uint16_t count, const uint16_t* values)
         {
             last_address = address;
@@ -148,7 +150,32 @@ namespace UnitTests
         [TestMethod]
 		void TestSlaveSingleRegister()
 		{
-            Assert::AreEqual(true, false, "write this test");
+            // create the slave object
+            CFramerDummy framer;
+            CSlaveHandler handler;
+            ModbusPotato::CSlave slave(&framer, &handler);
+
+            // initialize with a test packet
+            // from http://www.simplymodbus.ca/FC06.htm
+            framer.set_frame_address(0x11);
+            uint8_t data[] = { 0x06, 0x00, 0x01, 0x00, 0x03 };
+            std::copy(data, data + _countof(data), framer.buffer());
+            framer.set_buffer_len(_countof(data));
+
+            // simulate the frame received event
+            slave.frame_ready();
+
+            // check the result
+            Assert::AreEqual((uint16_t)0x0003, handler.last_values[0]);
+            Assert::AreEqual((uint16_t)0x0001, handler.last_address);
+            Assert::AreEqual((uint16_t)0x0001, handler.last_count);
+            Assert::AreEqual(true, framer.was_sent);
+            Assert::AreEqual((size_t)5, framer.buffer_len());
+            Assert::AreEqual((uint8_t)0x06, framer.buffer()[0]); // preset single register
+            Assert::AreEqual((uint8_t)0x00, framer.buffer()[1]); // address H
+            Assert::AreEqual((uint8_t)0x01, framer.buffer()[2]); // address L
+            Assert::AreEqual((uint8_t)0x00, framer.buffer()[3]); // value H
+            Assert::AreEqual((uint8_t)0x03, framer.buffer()[4]); // value L
         }
 
         [TestMethod]
@@ -170,8 +197,8 @@ namespace UnitTests
             slave.frame_ready();
 
             // check the result
-            Assert::AreEqual((uint16_t)0xa, handler.last_values[0]);
-            Assert::AreEqual((uint16_t)0x102, handler.last_values[1]);
+            Assert::AreEqual((uint16_t)0x000a, handler.last_values[0]);
+            Assert::AreEqual((uint16_t)0x0102, handler.last_values[1]);
             Assert::AreEqual((uint16_t)0x0001, handler.last_address);
             Assert::AreEqual((uint16_t)0x0002, handler.last_count);
             Assert::AreEqual(true, framer.was_sent);
