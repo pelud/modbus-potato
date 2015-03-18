@@ -1,3 +1,5 @@
+#ifndef __ModbusSlaveHandlerBase_h__
+#define __ModbusSlaveHandlerBase_h__
 #include "ModbusInterface.h"
 namespace ModbusPotato
 {
@@ -12,3 +14,4 @@ namespace ModbusPotato
         virtual modbus_exception_code::modbus_exception_code write_multiple_registers(uint16_t address, uint16_t count, const uint16_t* values) { return modbus_exception_code::illegal_function; }
     };
 }
+#endif
