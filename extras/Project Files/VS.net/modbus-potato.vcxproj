@@ -80,11 +80,13 @@
     <ClInclude Include="..\..\..\src\ModbusRTU.h" />
     <ClInclude Include="..\..\..\src\ModbusSlave.h" />
     <ClInclude Include="..\..\..\src\ModbusSlaveHandlerBase.h" />
+    <ClInclude Include="..\..\..\src\ModbusSlaveHandlerHolding.h" />
     <ClInclude Include="..\..\..\src\ModbusTypes.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\ModbusRTU.cpp" />
     <ClCompile Include="..\..\..\src\ModbusSlave.cpp" />
+    <ClCompile Include="..\..\..\src\ModbusSlaveHandlerHolding.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
