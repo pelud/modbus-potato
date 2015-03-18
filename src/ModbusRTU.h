@@ -29,6 +29,7 @@ namespace ModbusPotato
         /// the inter-character delays.
         /// </remarks>
         void setup(unsigned long baud);
+
         virtual void set_handler(IFrameHandler* handler) { m_handler = handler; }
         virtual uint8_t station_address() const { return m_station_address; }
         virtual void set_station_address(uint8_t address) { m_station_address = address; }
