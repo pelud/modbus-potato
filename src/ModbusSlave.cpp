@@ -30,14 +30,26 @@ namespace ModbusPotato
         {
             switch (m_framer->buffer()[0])
             {
+            case read_coil_status:
+                result = read_bit_input_rsp(false);
+                break;
+            case read_discrete_input_status:
+                result = read_bit_input_rsp(true);
+                break;
             case read_holding_registers:
                 result = read_registers_rsp(true);
                 break;
             case read_input_registers:
                 result = read_registers_rsp(false);
                 break;
-            case preset_single_register:
-                result = preset_single_register_rsp();
+            case write_single_coil:
+                result = write_single_coil_rsp();
+                break;
+            case write_single_register:
+                result = write_single_register_rsp();
+                break;
+            case write_multiple_coils:
+                result = write_multiple_coils_rsp();
                 break;
             case write_multiple_registers:
                 result = write_multiple_registers_rsp();
@@ -64,6 +76,47 @@ namespace ModbusPotato
 
         // send the result back
         m_framer->send();
+    }
+
+    uint8_t CModbusSlave::read_bit_input_rsp(bool discrete)
+    {
+        if (m_framer->buffer_len() != 5)
+            return modbus_exception_code::illegal_function;
+
+        // determine the address and count
+        uint8_t* buffer = m_framer->buffer();
+        uint16_t address = ((uint16_t)buffer[1] << 8) | buffer[2];
+        uint16_t count = ((uint16_t)buffer[3] << 8) | buffer[4];
+        
+        // determine the resulting buffer length
+        //
+        // buffer[0] = fc
+        // buffer[1] = byte count
+        // buffer[2+] = data
+        //
+        size_t bytes = (count + 7) / 8;
+        size_t buffer_len = bytes + 2;
+
+        // check to make sure the count is valid
+        if (count < 1 || buffer_len > m_framer->buffer_max())
+            return modbus_exception_code::illegal_data_value; // count not valid
+
+        // execute the handler
+        uint8_t result = modbus_exception_code::illegal_function;
+        if (discrete)
+            result = m_handler->read_discrete_inputs(address, count, buffer + 2);
+        else
+            result = m_handler->read_coils(address, count, buffer + 2);
+
+        // check if something went wrong
+        if (result != modbus_exception_code::ok)
+            return result; // error
+
+        // update the byte count and packet length
+        buffer[1] = bytes;
+        m_framer->set_buffer_len(buffer_len);
+
+        return modbus_exception_code::ok;
     }
 
     uint8_t CModbusSlave::read_registers_rsp(bool holding)
@@ -114,7 +167,7 @@ namespace ModbusPotato
         return modbus_exception_code::ok;
     }
 
-    uint8_t CModbusSlave::preset_single_register_rsp()
+    uint8_t CModbusSlave::write_single_coil_rsp()
     {
         if (m_framer->buffer_len() != 5)
             return modbus_exception_code::illegal_function;
@@ -123,7 +176,56 @@ namespace ModbusPotato
         uint8_t* buffer = m_framer->buffer();
         uint16_t address = ((uint16_t)buffer[1] << 8) | buffer[2];
         uint16_t value = ((uint16_t)buffer[3] << 8) | buffer[4];
-        return m_handler->preset_single_register(address, value);
+
+        // make sure the value is valid
+        if (value != 0 && value != 0xff00)
+            return modbus_exception_code::illegal_data_value;
+
+        // execute the handler
+        return m_handler->write_single_coil(address, value != 0);
+    }
+
+    uint8_t CModbusSlave::write_single_register_rsp()
+    {
+        if (m_framer->buffer_len() != 5)
+            return modbus_exception_code::illegal_function;
+
+        // determine the address and value
+        uint8_t* buffer = m_framer->buffer();
+        uint16_t address = ((uint16_t)buffer[1] << 8) | buffer[2];
+        uint16_t value = ((uint16_t)buffer[3] << 8) | buffer[4];
+
+        // execute the handler
+        return m_handler->write_single_register(address, value);
+    }
+
+    uint8_t CModbusSlave::write_multiple_coils_rsp()
+    {
+        if (m_framer->buffer_len() < 6)
+            return modbus_exception_code::illegal_function;
+
+        // determine the address and count
+        uint8_t* buffer = m_framer->buffer();
+        uint16_t address = ((uint16_t)buffer[1] << 8) | buffer[2];
+        uint16_t count = ((uint16_t)buffer[3] << 8) | buffer[4];
+        uint8_t check = buffer[5];
+
+        // make sure the counts are valid
+        if (count < 0 || (count + 7) / 8 != check || check + 6 != m_framer->buffer_len())
+            return modbus_exception_code::illegal_data_value;
+
+        // execute the handler
+        if (uint8_t result = m_handler->write_multiple_coils(address, count, buffer + 6))
+            return result; // error
+
+        // set the result buffer
+        buffer[1] = (uint8_t)(address >> 8);
+        buffer[2] = (uint8_t)address;
+        buffer[3] = (uint8_t)(count >> 8);
+        buffer[4] = (uint8_t)count;
+        m_framer->set_buffer_len(5);
+
+        return modbus_exception_code::ok;
     }
 
     uint8_t CModbusSlave::write_multiple_registers_rsp()

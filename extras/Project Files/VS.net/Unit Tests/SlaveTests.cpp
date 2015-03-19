@@ -8,11 +8,12 @@ using namespace System;
 using namespace System::Text;
 using namespace System::Collections::Generic;
 using namespace	Microsoft::VisualStudio::TestTools::UnitTesting;
+using namespace ModbusPotato;
 
 namespace UnitTests
 {
 #pragma region Dummy Classes
-    public class CFramerDummy : public ModbusPotato::IFramer
+    public class CFramerDummy : public IFramer
     {
     public:
         CFramerDummy()
@@ -23,7 +24,7 @@ namespace UnitTests
             ,   was_finished()
         {
         }
-        virtual void set_handler(ModbusPotato::IFrameHandler* handler) { }
+        virtual void set_handler(IFrameHandler* handler) { }
         virtual uint8_t station_address() const { return m_station_address; }
         virtual void set_station_address(uint8_t address) { m_station_address = address; }
         virtual unsigned long poll() { return 0; }
@@ -45,7 +46,7 @@ namespace UnitTests
         uint8_t m_buffer[256];
     };
 
-    class CSlaveHandler : public ModbusPotato::CModbusSlaveHandlerBase
+    class CSlaveHandler : public CModbusSlaveHandlerBase
     {
     public:
         CSlaveHandler()
@@ -55,36 +56,56 @@ namespace UnitTests
             std::fill(last_values, last_values + _countof(last_values), 0);
         }
         uint16_t last_address, last_count;
-        uint16_t last_values[128];
-        virtual ModbusPotato::modbus_exception_code::modbus_exception_code read_holding_registers(uint16_t address, uint16_t count, uint16_t* result)
+        uint16_t last_values[256];
+        virtual modbus_exception_code::modbus_exception_code read_coils(uint16_t address, uint16_t count, uint8_t* result)
+        {
+            last_address = address;
+            last_count = count;
+            static const uint8_t data[] = { 0xCD, 0x6B, 0xB2, 0x0E, 0x1B };
+            for (uint16_t i = 0; i < count; ++i)
+                result[i] = data[i % _countof(data)];
+            return modbus_exception_code::ok;
+        }
+        virtual modbus_exception_code::modbus_exception_code read_discrete_inputs(uint16_t address, uint16_t count, uint8_t* result)
+        {
+            last_address = address;
+            last_count = count;
+            static const uint8_t data[] = { 0xAC, 0xDB, 0x35 };
+            for (uint16_t i = 0; i < count; ++i)
+                result[i] = data[i % _countof(data)];
+            return modbus_exception_code::ok;
+        }
+        virtual modbus_exception_code::modbus_exception_code read_holding_registers(uint16_t address, uint16_t count, uint16_t* result)
         {
             last_address = address;
             last_count = count;
             static const uint16_t data[] = { 0xAE41, 0x5652, 0x4340 };
             for (uint16_t i = 0; i < count; ++i)
-            {
                 result[i] = data[i % _countof(data)];
-            }
-            return ModbusPotato::modbus_exception_code::ok;
+            return modbus_exception_code::ok;
         }
-        virtual ModbusPotato::modbus_exception_code::modbus_exception_code read_input_registers(uint16_t address, uint16_t count, uint16_t* result)
+        virtual modbus_exception_code::modbus_exception_code read_input_registers(uint16_t address, uint16_t count, uint16_t* result)
         {
             last_address = address;
             last_count = count;
             static const uint16_t data[] = { 0x000A, 0x5652, 0x4340 };
             for (uint16_t i = 0; i < count; ++i)
-            {
                 result[i] = data[i % _countof(data)];
-            }
-            return ModbusPotato::modbus_exception_code::ok;
+            return modbus_exception_code::ok;
         }
-        virtual ModbusPotato::modbus_exception_code::modbus_exception_code preset_single_register(uint16_t address, uint16_t value) { return write_multiple_registers(address, 1, &value); }
-        virtual ModbusPotato::modbus_exception_code::modbus_exception_code write_multiple_registers(uint16_t address, uint16_t count, const uint16_t* values)
+        virtual modbus_exception_code::modbus_exception_code write_multiple_registers(uint16_t address, uint16_t count, const uint16_t* values)
         {
             last_address = address;
             last_count = count;
             std::copy(values, values + count, last_values);
-            return ModbusPotato::modbus_exception_code::ok;
+            return modbus_exception_code::ok;
+        }
+        virtual modbus_exception_code::modbus_exception_code write_multiple_coils(uint16_t address, uint16_t count, const uint8_t* values)
+        {
+            last_address = address;
+            last_count = count;
+            std::copy(values, values + count, last_values);
+            return modbus_exception_code::ok;
         }
     };
 
@@ -98,7 +119,7 @@ namespace UnitTests
 		void TestSlaveConstructor()
 		{
             CFramerDummy framer;
-            ModbusPotato::CModbusSlave slave(&framer, NULL);
+            CModbusSlave slave(&framer, NULL);
 		}
 
         [TestMethod]
@@ -106,7 +127,7 @@ namespace UnitTests
 		{
             // create the slave object
             CFramerDummy framer;
-            ModbusPotato::CModbusSlave slave(&framer, NULL);
+            CModbusSlave slave(&framer, NULL);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC03.htm
@@ -132,7 +153,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC01.htm
@@ -163,7 +184,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC02.htm
@@ -194,7 +215,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC03.htm
@@ -229,7 +250,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC04.htm
@@ -260,7 +281,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC05.htm
@@ -277,6 +298,7 @@ namespace UnitTests
             Assert::AreNotEqual((size_t)2, framer.buffer_len());
             Assert::AreEqual((uint16_t)0x00ac, handler.last_address);
             Assert::AreEqual((uint16_t)0x0001, handler.last_count);
+            Assert::AreEqual((uint16_t)0x01, handler.last_values[0]);
 
             // data packet
             Assert::AreEqual((size_t)_countof(data), framer.buffer_len());
@@ -285,12 +307,12 @@ namespace UnitTests
 
         // FC06
         [TestMethod]
-		void TestSlaveFC06SingleRegister()
+		void TestSlaveFC06PresetSingleRegister()
 		{
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC06.htm
@@ -323,7 +345,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC15.htm
@@ -340,6 +362,8 @@ namespace UnitTests
             Assert::AreNotEqual((size_t)2, framer.buffer_len());
             Assert::AreEqual((uint16_t)0x0013, handler.last_address);
             Assert::AreEqual((uint16_t)0x000A, handler.last_count);
+            Assert::AreEqual((uint16_t)0xCD, handler.last_values[0]);
+            Assert::AreEqual((uint16_t)0x01, handler.last_values[1]);
 
             // data packet
             uint8_t response[] = { 0x0F, 0x00, 0x13, 0x00, 0x0A };
@@ -354,7 +378,7 @@ namespace UnitTests
             // create the slave object
             CFramerDummy framer;
             CSlaveHandler handler;
-            ModbusPotato::CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&framer, &handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC16.htm

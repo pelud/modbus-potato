@@ -317,22 +317,42 @@ namespace ModbusPotato
         virtual ~ISlaveHandler() {}
 
         /// <summary>
-        /// Handles Modbus function 0x3: Read holding registers.
+        /// Handles Modbus function 0x01: Read Coils.
+        /// </summary>
+        virtual modbus_exception_code::modbus_exception_code read_coils(uint16_t address, uint16_t count, uint8_t* result) = 0;
+
+        /// <summary>
+        /// Handles Modbus function 0x02: Read Discrete Inputs.
+        /// </summary>
+        virtual modbus_exception_code::modbus_exception_code read_discrete_inputs(uint16_t address, uint16_t count, uint8_t* result) = 0;
+
+        /// <summary>
+        /// Handles Modbus function 0x03: Read Holding Registers.
         /// </summary>
         virtual modbus_exception_code::modbus_exception_code read_holding_registers(uint16_t address, uint16_t count, uint16_t* result) = 0;
 
         /// <summary>
-        /// Handles Modbus function 0x4: Read input registers.
+        /// Handles Modbus function 0x04: Read Input Registers.
         /// </summary>
         virtual modbus_exception_code::modbus_exception_code read_input_registers(uint16_t address, uint16_t count, uint16_t* result) = 0;
 
         /// <summary>
-        /// Handles Modbus function 0x6: Preset single register.
+        /// Handles Modbus function 0x05: Write Single Coil.
         /// </summary>
-        virtual modbus_exception_code::modbus_exception_code preset_single_register(uint16_t address, uint16_t value) = 0;
+        virtual modbus_exception_code::modbus_exception_code write_single_coil(uint16_t address, bool value) = 0;
 
         /// <summary>
-        /// Handles Modbus function 0x10: Write multiple registers.
+        /// Handles Modbus function 0x06: Write Single Register.
+        /// </summary>
+        virtual modbus_exception_code::modbus_exception_code write_single_register(uint16_t address, uint16_t value) = 0;
+
+        /// <summary>
+        /// Handles Modbus function 0x0F: Write Multiple Coils.
+        /// </summary>
+        virtual modbus_exception_code::modbus_exception_code write_multiple_coils(uint16_t address, uint16_t count, const uint8_t* values) = 0;
+
+        /// <summary>
+        /// Handles Modbus function 0x10: Write Multiple registers.
         /// </summary>
         virtual modbus_exception_code::modbus_exception_code write_multiple_registers(uint16_t address, uint16_t count, const uint16_t* values) = 0;
     };
