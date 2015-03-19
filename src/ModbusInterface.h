@@ -3,6 +3,7 @@
 // See also:
 // http://www.modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf
 // http://www.modbus.org/docs/Modbus_over_serial_line_V1_02.pdf
+// http://web.eecs.umich.edu/~modbus/documents/PI_MBUS_300.pdf
 //
 #ifndef __ModbusPotato_Interface_h__
 #define __ModbusPotato_Interface_h__
@@ -319,6 +320,11 @@ namespace ModbusPotato
         /// Handles Modbus function 0x3: Read holding registers.
         /// </summary>
         virtual modbus_exception_code::modbus_exception_code read_holding_registers(uint16_t address, uint16_t count, uint16_t* result) = 0;
+
+        /// <summary>
+        /// Handles Modbus function 0x4: Read input registers.
+        /// </summary>
+        virtual modbus_exception_code::modbus_exception_code read_input_registers(uint16_t address, uint16_t count, uint16_t* result) = 0;
 
         /// <summary>
         /// Handles Modbus function 0x6: Preset single register.

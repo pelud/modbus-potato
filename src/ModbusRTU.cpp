@@ -451,13 +451,24 @@ namespace ModbusPotato
 
     bool CModbusRTU::begin_send()
     {
-        // make sure we can begin
-        if (m_state != state_idle && m_state != state_frame_ready && m_state != state_queue)
-            return false;
-
-        // set the state machine to the 'queue' state we the user can access the buffer
-        m_state = state_queue;
-        return true;
+        switch (m_state)
+        {
+        case state_collision:
+            {
+                return true; // if there was a collision then return true so that the user will call send() or finished()
+            }
+        case state_queue:
+            {
+                return true; // already in the queue state
+            }
+        case state_idle:
+        case state_frame_ready:
+            {
+                m_state = state_queue; // set the state machine to the 'queue' state we the user can access the buffer
+                return true;
+            }
+        }
+        return false; // not ready to send
     }
 
     void CModbusRTU::send()

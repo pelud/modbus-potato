@@ -63,7 +63,18 @@ namespace UnitTests
             static const uint16_t data[] = { 0xAE41, 0x5652, 0x4340 };
             for (uint16_t i = 0; i < count; ++i)
             {
-                result[i] = data[i];
+                result[i] = data[i % _countof(data)];
+            }
+            return ModbusPotato::modbus_exception_code::ok;
+        }
+        virtual ModbusPotato::modbus_exception_code::modbus_exception_code read_input_registers(uint16_t address, uint16_t count, uint16_t* result)
+        {
+            last_address = address;
+            last_count = count;
+            static const uint16_t data[] = { 0x000A, 0x5652, 0x4340 };
+            for (uint16_t i = 0; i < count; ++i)
+            {
+                result[i] = data[i % _countof(data)];
             }
             return ModbusPotato::modbus_exception_code::ok;
         }
@@ -112,10 +123,73 @@ namespace UnitTests
             Assert::AreEqual((size_t)2, framer.buffer_len());
             Assert::AreEqual((uint8_t)0x83, framer.buffer()[0]); // read holding registers exception
             Assert::AreEqual((uint8_t)0x01, framer.buffer()[1]); // illegal function
-		}
+        }
 
+        // FC01
         [TestMethod]
-		void TestSlaveRead()
+		void TestSlaveFC01ReadCoilStatus()
+		{
+            // create the slave object
+            CFramerDummy framer;
+            CSlaveHandler handler;
+            ModbusPotato::CModbusSlave slave(&framer, &handler);
+
+            // initialize with a test packet
+            // from http://www.simplymodbus.ca/FC01.htm
+            framer.set_frame_address(0x11);
+            uint8_t data[] = { 0x01, 0x00, 0x13, 0x00, 0x25 };
+            std::copy(data, data + _countof(data), framer.buffer());
+            framer.set_buffer_len(_countof(data));
+
+            // simulate the frame received event
+            slave.frame_ready();
+
+            // check the result
+            Assert::AreEqual(true, framer.was_sent);
+            Assert::AreNotEqual((size_t)2, framer.buffer_len());
+            Assert::AreEqual((uint16_t)0x0013, handler.last_address);
+            Assert::AreEqual((uint16_t)0x0025, handler.last_count);
+
+            // data packet
+            uint8_t response[] = { 0x01, 0x05, 0xCD, 0x6B, 0xB2, 0x0E, 0x1B };
+            Assert::AreEqual((size_t)_countof(response), framer.buffer_len());
+            Assert::AreEqual(true, std::equal(response, response + _countof(response), framer.buffer()));
+        }
+
+        // FC02
+        [TestMethod]
+		void TestSlaveFC02ReadDiscreteInputStatus()
+		{
+            // create the slave object
+            CFramerDummy framer;
+            CSlaveHandler handler;
+            ModbusPotato::CModbusSlave slave(&framer, &handler);
+
+            // initialize with a test packet
+            // from http://www.simplymodbus.ca/FC02.htm
+            framer.set_frame_address(0x11);
+            uint8_t data[] = { 0x02, 0x00, 0xC4, 0x00, 0x16 };
+            std::copy(data, data + _countof(data), framer.buffer());
+            framer.set_buffer_len(_countof(data));
+
+            // simulate the frame received event
+            slave.frame_ready();
+
+            // check the result
+            Assert::AreEqual(true, framer.was_sent);
+            Assert::AreNotEqual((size_t)2, framer.buffer_len());
+            Assert::AreEqual((uint16_t)0x00C4, handler.last_address);
+            Assert::AreEqual((uint16_t)0x0016, handler.last_count);
+
+            // data packet
+            uint8_t response[] = { 0x02, 0x03, 0xAC, 0xDB, 0x35 };
+            Assert::AreEqual((size_t)_countof(response), framer.buffer_len());
+            Assert::AreEqual(true, std::equal(response, response + _countof(response), framer.buffer()));
+        }
+
+        // FC03
+        [TestMethod]
+		void TestSlaveFC03ReadHoldingRegister()
 		{
             // create the slave object
             CFramerDummy framer;
@@ -133,9 +207,10 @@ namespace UnitTests
             slave.frame_ready();
 
             // check the result
+            Assert::AreEqual(true, framer.was_sent);
+            Assert::AreNotEqual((size_t)2, framer.buffer_len());
             Assert::AreEqual((uint16_t)0x006b, handler.last_address);
             Assert::AreEqual((uint16_t)0x0003, handler.last_count);
-            Assert::AreEqual(true, framer.was_sent);
             Assert::AreEqual((size_t)8, framer.buffer_len());
             Assert::AreEqual((uint8_t)0x03, framer.buffer()[0]); // read holding registers
             Assert::AreEqual((uint8_t)0x06, framer.buffer()[1]); // number of bytes to follow
@@ -147,8 +222,70 @@ namespace UnitTests
             Assert::AreEqual((uint8_t)0x40, framer.buffer()[7]); // data 2 L
 		}
 
+        // FC04
         [TestMethod]
-		void TestSlaveSingleRegister()
+		void TestSlaveFC04ReadInputRegisterStatus()
+		{
+            // create the slave object
+            CFramerDummy framer;
+            CSlaveHandler handler;
+            ModbusPotato::CModbusSlave slave(&framer, &handler);
+
+            // initialize with a test packet
+            // from http://www.simplymodbus.ca/FC04.htm
+            framer.set_frame_address(0x11);
+            uint8_t data[] = { 0x04, 0x00, 0x08, 0x00, 0x01 };
+            std::copy(data, data + _countof(data), framer.buffer());
+            framer.set_buffer_len(_countof(data));
+
+            // simulate the frame received event
+            slave.frame_ready();
+
+            // check the result
+            Assert::AreEqual(true, framer.was_sent);
+            Assert::AreNotEqual((size_t)2, framer.buffer_len());
+            Assert::AreEqual((uint16_t)0x0008, handler.last_address);
+            Assert::AreEqual((uint16_t)0x0001, handler.last_count);
+
+            // data packet
+            uint8_t response[] = { 0x04, 0x02, 0x00, 0x0A };
+            Assert::AreEqual((size_t)_countof(response), framer.buffer_len());
+            Assert::AreEqual(true, std::equal(response, response + _countof(response), framer.buffer()));
+        }
+
+        // FC05
+        [TestMethod]
+		void TestSlaveFC05ForceSingleCoil()
+		{
+            // create the slave object
+            CFramerDummy framer;
+            CSlaveHandler handler;
+            ModbusPotato::CModbusSlave slave(&framer, &handler);
+
+            // initialize with a test packet
+            // from http://www.simplymodbus.ca/FC05.htm
+            framer.set_frame_address(0x11);
+            uint8_t data[] = { 0x05, 0x00, 0xAC, 0xFF, 0x00 };
+            std::copy(data, data + _countof(data), framer.buffer());
+            framer.set_buffer_len(_countof(data));
+
+            // simulate the frame received event
+            slave.frame_ready();
+
+            // check the result
+            Assert::AreEqual(true, framer.was_sent);
+            Assert::AreNotEqual((size_t)2, framer.buffer_len());
+            Assert::AreEqual((uint16_t)0x00ac, handler.last_address);
+            Assert::AreEqual((uint16_t)0x0001, handler.last_count);
+
+            // data packet
+            Assert::AreEqual((size_t)_countof(data), framer.buffer_len());
+            Assert::AreEqual(true, std::equal(data, data + _countof(data), framer.buffer()));
+        }
+
+        // FC06
+        [TestMethod]
+		void TestSlaveFC06SingleRegister()
 		{
             // create the slave object
             CFramerDummy framer;
@@ -166,10 +303,11 @@ namespace UnitTests
             slave.frame_ready();
 
             // check the result
+            Assert::AreEqual(true, framer.was_sent);
+            Assert::AreNotEqual((size_t)2, framer.buffer_len());
             Assert::AreEqual((uint16_t)0x0003, handler.last_values[0]);
             Assert::AreEqual((uint16_t)0x0001, handler.last_address);
             Assert::AreEqual((uint16_t)0x0001, handler.last_count);
-            Assert::AreEqual(true, framer.was_sent);
             Assert::AreEqual((size_t)5, framer.buffer_len());
             Assert::AreEqual((uint8_t)0x06, framer.buffer()[0]); // preset single register
             Assert::AreEqual((uint8_t)0x00, framer.buffer()[1]); // address H
@@ -178,8 +316,40 @@ namespace UnitTests
             Assert::AreEqual((uint8_t)0x03, framer.buffer()[4]); // value L
         }
 
+        // FC15
         [TestMethod]
-		void TestSlaveWriteMultipleRegisters()
+		void TestSlaveFC15ForceMultipleCoils()
+		{
+            // create the slave object
+            CFramerDummy framer;
+            CSlaveHandler handler;
+            ModbusPotato::CModbusSlave slave(&framer, &handler);
+
+            // initialize with a test packet
+            // from http://www.simplymodbus.ca/FC15.htm
+            framer.set_frame_address(0x11);
+            uint8_t data[] = { 0x0F, 0x00, 0x13, 0x00, 0x0A, 0x02, 0xCD, 0x01 };
+            std::copy(data, data + _countof(data), framer.buffer());
+            framer.set_buffer_len(_countof(data));
+
+            // simulate the frame received event
+            slave.frame_ready();
+
+            // check the result
+            Assert::AreEqual(true, framer.was_sent);
+            Assert::AreNotEqual((size_t)2, framer.buffer_len());
+            Assert::AreEqual((uint16_t)0x0013, handler.last_address);
+            Assert::AreEqual((uint16_t)0x000A, handler.last_count);
+
+            // data packet
+            uint8_t response[] = { 0x0F, 0x00, 0x13, 0x00, 0x0A };
+            Assert::AreEqual((size_t)_countof(response), framer.buffer_len());
+            Assert::AreEqual(true, std::equal(response, response + _countof(response), framer.buffer()));
+        }
+
+        // FC16
+        [TestMethod]
+		void TestSlaveFC16WriteMultipleRegisters()
 		{
             // create the slave object
             CFramerDummy framer;
@@ -197,11 +367,12 @@ namespace UnitTests
             slave.frame_ready();
 
             // check the result
+            Assert::AreEqual(true, framer.was_sent);
+            Assert::AreNotEqual((size_t)2, framer.buffer_len());
             Assert::AreEqual((uint16_t)0x000a, handler.last_values[0]);
             Assert::AreEqual((uint16_t)0x0102, handler.last_values[1]);
             Assert::AreEqual((uint16_t)0x0001, handler.last_address);
             Assert::AreEqual((uint16_t)0x0002, handler.last_count);
-            Assert::AreEqual(true, framer.was_sent);
             Assert::AreEqual((size_t)5, framer.buffer_len());
             Assert::AreEqual((uint8_t)0x10, framer.buffer()[0]); // write multiple
             Assert::AreEqual((uint8_t)0x00, framer.buffer()[1]); // address H
