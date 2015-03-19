@@ -3,7 +3,7 @@
 // See also:
 // http://www.modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf
 // http://www.modbus.org/docs/Modbus_over_serial_line_V1_02.pdf
-// http://web.eecs.umich.edu/~modbus/documents/PI_MBUS_300.pdf
+// http://www.modbus.org/docs/PI_MBUS_300.pdf
 //
 #ifndef __ModbusPotato_Interface_h__
 #define __ModbusPotato_Interface_h__
@@ -304,7 +304,7 @@ namespace ModbusPotato
     ///
     /// The address and count should be validated before processing the
     /// request.  If either is found to be invalid, then the handler should
-    /// return modbus_exception_code::illegal_data_value.
+    /// return modbus_exception_code::illegal_data_address.
     ///
     /// If the address and count are valid, but an error occurs when handling
     /// the command, then the handler should return
