@@ -1,6 +1,7 @@
 #ifndef __ModbusArduinoHardwareSerial_h__
 #define __ModbusArduinoHardwareSerial_h__
 #include "ModbusInterface.h"
+class HardwareSerial;
 namespace ModbusPotato
 {
     /// <summary>
@@ -14,21 +15,19 @@ namespace ModbusPotato
         /// Construct the interface to the HardwareSerialDriver.
         /// </summary>
         /// <remarks>
-        /// The ucsra and ucsrb are the matching serial registers associated
-        /// with the given HardwareSerial object.  For example, with the
-        /// 'Serial' object, they should be UCSR0A and UCSR0B.  On processors
-        /// with Serial1, the registers should be UCSR1A and UCSR1B, etc.
+        /// port_number corresponds to the given Serial object.
+        /// i.e. port 0 is Serial, port 1 is Serial1, etc.
         /// </remarks>
-        CModbusArduinoHardwareSerial(HardwareSerial* serial, volatile uint8_t *ucsra, volatile uint8_t *ucsrb);
+        CModbusArduinoHardwareSerial(uint8_t port_number);
 
         virtual int read(uint8_t* buffer, size_t buffer_size);
         virtual int write(uint8_t* buffer, size_t len);
         virtual void txEnable(bool state);
         virtual bool writeComplete();
     private:
+        int availableForWrite();
         HardwareSerial* m_serial;
-        volatile uint8_t * const m_ucsra;
-        volatile uint8_t * const m_ucsrb;
+        uint8_t m_port_number;
     };
 }
 #endif
