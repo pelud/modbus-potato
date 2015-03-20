@@ -76,19 +76,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\src\ModbusASCII.h" />
-    <ClInclude Include="..\..\..\src\ModbusInterface.h" />
-    <ClInclude Include="..\..\..\src\ModbusRTU.h" />
-    <ClInclude Include="..\..\..\src\ModbusSlave.h" />
-    <ClInclude Include="..\..\..\src\ModbusSlaveHandlerBase.h" />
-    <ClInclude Include="..\..\..\src\ModbusSlaveHandlerHolding.h" />
-    <ClInclude Include="..\..\..\src\ModbusTypes.h" />
+    <ClCompile Include="..\..\..\ModbusASCII.cpp" />
+    <ClCompile Include="..\..\..\ModbusRTU.cpp" />
+    <ClCompile Include="..\..\..\ModbusSlave.cpp" />
+    <ClCompile Include="..\..\..\ModbusSlaveHandlerHolding.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\src\ModbusASCII.cpp" />
-    <ClCompile Include="..\..\..\src\ModbusRTU.cpp" />
-    <ClCompile Include="..\..\..\src\ModbusSlave.cpp" />
-    <ClCompile Include="..\..\..\src\ModbusSlaveHandlerHolding.cpp" />
+    <ClInclude Include="..\..\..\ModbusASCII.h" />
+    <ClInclude Include="..\..\..\ModbusInterface.h" />
+    <ClInclude Include="..\..\..\ModbusRTU.h" />
+    <ClInclude Include="..\..\..\ModbusSlave.h" />
+    <ClInclude Include="..\..\..\ModbusSlaveHandlerBase.h" />
+    <ClInclude Include="..\..\..\ModbusSlaveHandlerHolding.h" />
+    <ClInclude Include="..\..\..\ModbusTypes.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

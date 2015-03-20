@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "../../../../src/ModbusRTU.h"
-#include "../../../../src/ModbusASCII.h"
+#include "../../../../ModbusRTU.h"
+#include "../../../../ModbusASCII.h"
 #include <stdexcept>
 #include <vector>
 #include <tuple>

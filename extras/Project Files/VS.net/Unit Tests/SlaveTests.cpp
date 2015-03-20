@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "../../../../src/ModbusSlave.h"
-#include "../../../../src/ModbusSlaveHandlerBase.h"
+#include "../../../../ModbusSlave.h"
+#include "../../../../ModbusSlaveHandlerBase.h"
 #include <algorithm>
 #pragma comment(lib, "Ws2_32.lib")
 
