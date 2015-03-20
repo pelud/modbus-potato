@@ -56,6 +56,7 @@ namespace UnitTests
                 return 0;
             m_write.push_back(std::tr1::make_tuple(m_time, std::string(buffer, buffer + len)));
             m_last_write = ticks();
+            write_data.insert(write_data.end(), buffer, buffer + len);
             return len;
         }
         virtual void txEnable(bool state)
@@ -75,6 +76,7 @@ namespace UnitTests
             m_time += value;
         }
         void written(std::vector<std::tr1::tuple<system_tick_t /*start*/, std::string /*data*/> >& result) const { result = m_write; }
+        std::string write_data;
     private:
         system_tick_t m_time, m_last_write;
         size_t m_pos, m_col;
@@ -202,7 +204,7 @@ namespace UnitTests
         };
 
         [TestMethod]
-        void TestTransmitFrame()
+        void TestRTUTransmitFrame()
         {
             CDummyStream stream;
             uint8_t buffer[MODBUS_DATA_BUFFER_SIZE];
@@ -237,6 +239,45 @@ namespace UnitTests
             // get the result
             std::vector<std::tr1::tuple<system_tick_t /*start*/, std::string /*data*/> > items;
             stream.written(items);
+        }
+
+        [TestMethod]
+        void TestASCIITransmitFrame()
+        {
+            CDummyStream stream;
+            uint8_t buffer[MODBUS_DATA_BUFFER_SIZE];
+            CModbusRTU rtu(&stream, &stream, buffer, _countof(buffer));
+            rtu.setup(9600);
+            rtu.set_mode(true);
+
+            // skip some ticks to wait for the initial dump
+            while (stream.ticks() < 5)
+            {
+                rtu.poll();
+                stream.increment(1);
+            }
+
+            // aquire the buffer
+            Assert::AreEqual(true, rtu.begin_send());
+
+            // update the data
+            rtu.set_frame_address(17);
+            uint8_t data[] = { 0x03, 0x00, 0x6B, 0x00, 0x03 };
+            std::copy(data, data + _countof(data), rtu.buffer());
+            rtu.set_buffer_len(_countof(data));
+
+            // begin the send
+            rtu.send();
+
+            // wait for the transfer to happen
+            while (stream.ticks() < 30)
+            {
+                rtu.poll();
+                stream.increment(1);
+            }
+
+            // check the result
+            Assert::AreEqual(gcnew System::String(":1103006B00037E\r\n"), gcnew System::String(stream.write_data.c_str()));
         }
     };
 }

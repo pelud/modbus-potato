@@ -91,14 +91,16 @@ namespace ModbusPotato
             state_ascii_rx_pdu_high,
             state_ascii_rx_pdu_low,
             state_ascii_rx_cr,
+            state_ascii_tx_sof,
             state_ascii_tx_addr_high,
             state_ascii_tx_addr_low,
             state_ascii_tx_pdu_high,
             state_ascii_tx_pdu_low,
-            state_ascii_tx_crc_high,
-            state_ascii_tx_crc_low,
-            state_ascii_tx_wait_high,
-            state_ascii_tx_wait_low,
+            state_ascii_tx_lrc_high,
+            state_ascii_tx_lrc_low,
+            state_ascii_tx_cr,
+            state_ascii_tx_lf,
+            state_ascii_tx_wait,
         };
         state_type m_state;
         system_tick_t m_last_ticks;
