@@ -54,7 +54,7 @@ namespace ModbusPotato
 
     void CModbusASCII::set_timeout(unsigned int milliseconds)
     {
-        m_T1s = 1000000 / m_timer->microseconds_per_tick();
+        m_T1s = milliseconds * 1000 / m_timer->microseconds_per_tick();
     }
 
     unsigned long CModbusASCII::poll()
