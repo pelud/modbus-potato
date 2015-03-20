@@ -1,7 +1,7 @@
 #ifndef __ModbusArduinoHardwareSerial_h__
 #define __ModbusArduinoHardwareSerial_h__
 #include "ModbusInterface.h"
-class HardwareSerial;
+#ifdef ARDUINO
 namespace ModbusPotato
 {
     /// <summary>
@@ -30,4 +30,5 @@ namespace ModbusPotato
         uint8_t m_port_number;
     };
 }
+#endif
 #endif

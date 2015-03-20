@@ -1,4 +1,5 @@
 #include "ModbusArduinoHardwareSerial.h"
+#ifdef ARDUINO
 namespace ModbusPotato
 {
     CModbusArduinoHardwareSerial::CModbusArduinoHardwareSerial(uint8_t port_number)
@@ -7,13 +8,9 @@ namespace ModbusPotato
     {
         switch (port_number)
         {
-#ifdef HAVE_HWSERIAL0
         case 0:
             m_serial = &Serial;
             break;
-#else
-#error HardwareSerial is not supported by your platform
-#endif
 #ifdef HAVE_HWSERIAL1
         case 1:
             m_serial = &Serial1;
@@ -69,7 +66,6 @@ namespace ModbusPotato
         if (!m_serial)
             return 0;
 
-#ifdef ARDUINO
         // check how many characters are available
         int a = m_serial->available();
         if (a <= 0)
@@ -89,17 +85,12 @@ namespace ModbusPotato
 
         // read the data
         return m_serial->readBytes(buffer, a);
-#else
-        return 0;
-#endif
     }
 
     int CModbusArduinoHardwareSerial::write(uint8_t* buffer, size_t len)
     {
         if (!m_serial)
             return 0;
-
-#ifdef ARDUINO
 
         // check how many characters can be written without blocking
         int a = availableForWrite();
@@ -112,10 +103,6 @@ namespace ModbusPotato
 
         // write the data
         return m_serial->write(buffer, len);
-
-#else
-        return 0;
-#endif
     }
 
     void CModbusArduinoHardwareSerial::txEnable(bool state)
@@ -143,7 +130,7 @@ namespace ModbusPotato
             // the UDR register.
             //
             return bit_is_clear(UCSRB, UDRIE0) && bit_is_set(UCSRA, TXC0);
-#elif UBRR0H
+#elif defined(UBRR0H)
             return bit_is_clear(UCSR0B, UDRIE0) && bit_is_set(UCSR0A, TXC0);
 #else
 #error CModbusArduinoHardwareSerial::writeComplete() must be tailored to your platform 
@@ -172,15 +159,12 @@ namespace ModbusPotato
     int CModbusArduinoHardwareSerial::availableForWrite()
     {
         // return how many characters are available in the write buffer
-#ifdef ARDUINO
 #ifdef ENERGIA
         // we don't have a direct way to get the number of characters left, so it's all or nothing on ENERGIA
         return writeComplete() ? SERIAL_BUFFER_SIZE : 0;
 #else
         return m_serial->availableForWrite();
 #endif
-#else
-        return 0;
-#endif
     }
 }
+#endif
