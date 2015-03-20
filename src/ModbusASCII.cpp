@@ -168,6 +168,14 @@ rx_addr:
                 m_frame_address <<= 4;
                 m_frame_address |= ch;
 
+                // check to see if the frame address matches our station address
+                if (m_station_address && m_frame_address && m_station_address != m_frame_address)
+                {
+                    // no match, go back to the idle state
+                    m_state = state_idle;
+                    goto idle;
+                }
+
                 // initialize the checksum and the data buffer
                 m_checksum = m_frame_address;
                 m_buffer_len = 0;
