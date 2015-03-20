@@ -26,9 +26,10 @@ static SlaveRegisterType m_registers = { { 0x8000, 500 } }; // initialize with a
 static uint16_t m_phaseaccum = 0; // phase accumulator for PWM on led
 
 // chain together the class implementations
-// for Serial1, change to driver(&Serial1, &UCSR1A, &UCSR1B),
-// for Serial2, change to driver(&Serial2, &UCSR2A, &UCSR2B), etc
-static CModbusArduinoHardwareSerial driver(&Serial, &UCSR0A, &UCSR0B);
+// for Serial, leave as driver(0);
+// for Serial1, change to driver(1);
+// for Serial2, change to driver(2); etc
+static CModbusArduinoHardwareSerial driver(0);
 static CModbusArduinoTimeProvider time_provider;
 static uint8_t m_frame_buffer[MODBUS_DATA_BUFFER_SIZE];
 static CModbusRTU rtu(&driver, &time_provider, m_frame_buffer, MODBUS_DATA_BUFFER_SIZE);
