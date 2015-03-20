@@ -30,10 +30,10 @@ static uint16_t m_phaseaccum = 0; // phase accumulator for PWM on led
 // for Serial2, change to driver(&Serial2, &UCSR2A, &UCSR2B), etc
 static CModbusArduinoHardwareSerial driver(&Serial, &UCSR0A, &UCSR0B);
 static CModbusArduinoTimeProvider time_provider;
-static uint8_t m_rtu_buffer[MODBUS_DATA_BUFFER_SIZE];
-static CModbusRTU rtu(&driver, &time_provider, m_rtu_buffer, MODBUS_DATA_BUFFER_SIZE);
+static uint8_t m_frame_buffer[MODBUS_DATA_BUFFER_SIZE];
+static CModbusRTU rtu(&driver, &time_provider, m_frame_buffer, MODBUS_DATA_BUFFER_SIZE);
 static CModbusSlaveHandlerHolding slave_handler(m_registers.array, SLAVE_REGISTER_COUNT);
-static CModbusSlave slave(&rtu, &slave_handler);
+static CModbusSlave slave(&slave_handler);
 
 void setup() {
 

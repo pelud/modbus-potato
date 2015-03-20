@@ -105,10 +105,10 @@ class CSlaveHandler : public CModbusSlaveHandlerBase
 // for Serial2, change to driver(&Serial2, &UCSR2A, &UCSR2B), etc
 static CModbusArduinoHardwareSerial driver(&Serial, &UCSR0A, &UCSR0B);
 static CModbusArduinoTimeProvider time_provider;
-static uint8_t m_rtu_buffer[MODBUS_DATA_BUFFER_SIZE];
-static CModbusRTU rtu(&driver, &time_provider, m_rtu_buffer, MODBUS_DATA_BUFFER_SIZE);
+static uint8_t m_frame_buffer[MODBUS_DATA_BUFFER_SIZE];
+static CModbusRTU rtu(&driver, &time_provider, m_frame_buffer, MODBUS_DATA_BUFFER_SIZE);
 static CSlaveHandler slave_handler;
-static CModbusSlave slave(&rtu, &slave_handler);
+static CModbusSlave slave(&slave_handler);
 
 void setup() {
 
@@ -120,16 +120,6 @@ void setup() {
 
   // initialize digital pin 13 as an output.
   pinMode(LED_PIN, OUTPUT);
-
-  // flash the LED a few times to indicate that we have booted
-  for (int i = 0; i < 4; ++i)
-  {
-    digitalWrite(LED_PIN, LOW);
-    delay(250);
-    digitalWrite(LED_PIN, HIGH);
-    delay(250);
-  }
-  digitalWrite(LED_PIN, LOW);
 }
 
 void loop() {
