@@ -21,10 +21,10 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="RTUTests.cpp">
+    <ClCompile Include="SlaveTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SlaveTests.cpp">
+    <ClCompile Include="FramerTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

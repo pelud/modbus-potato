@@ -2,9 +2,6 @@
 #ifdef _MSC_VER
 #undef max
 #endif
-#define ISXDIGIT(ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'A' && (ch) <= 'F') || ((ch) >= 'a' && (ch) <= 'f'))
-#define ASC2BIN(ch) ((ch) <= '9' ? (ch) - '0' : ((ch) | 0x20) - 'a' + 10)
-#define BIN2ASC(n) ((n) <= 9 ? (char)((n) + '0') : (char)((n) - 10 + 'A'))
 namespace ModbusPotato
 {
     // calculate the inter-character delay (T3.5 and T1.5) values
@@ -53,7 +50,6 @@ namespace ModbusPotato
     CModbusRTU::CModbusRTU(IStream* stream, ITimeProvider* timer, uint8_t* buffer, size_t buffer_max)
         :   m_stream(stream)
         ,   m_timer(timer)
-        ,   m_ascii()
         ,   m_buffer(buffer)
         ,   m_buffer_max(buffer_max)
         ,   m_buffer_len()
@@ -66,7 +62,6 @@ namespace ModbusPotato
         ,   m_last_ticks()
         ,   m_T3p5()
         ,   m_T1p5()
-        ,   m_T1s()
     {
         if (!m_stream || !m_timer || !m_buffer || m_buffer_max < 3)
         {
@@ -115,9 +110,6 @@ namespace ModbusPotato
         // make sure the delays are each at least 2 counts
         m_T3p5 = m_T3p5 < minimum_tick_count ? minimum_tick_count : m_T3p5;
         m_T1p5 = m_T1p5 < minimum_tick_count ? minimum_tick_count : m_T1p5;
-
-        // calculate the delay for 1 second
-        m_T1s = 1000000 / m_timer->microseconds_per_tick();
     }
 
     unsigned long CModbusRTU::poll()
@@ -201,20 +193,6 @@ idle:
             {
                 if (int ec = m_stream->read(&m_frame_address, 1))
                 {
-                    // check if we are in ascii mode
-                    if (m_ascii)
-                    {
-                        // make sure the character was read properly and that it's the start of frame
-                        if (ec > 0 && m_frame_address == ':')
-                        {
-                            // if so, go to the ascii rx address high state
-                            m_state = state_ascii_rx_addr_high;
-                            m_last_ticks = m_timer->ticks();
-                            goto ascii_rx_addr;
-                        }
-                        goto idle; // stay in the idle state
-                    }
-
                     // make sure the character is valid
                     if (ec < 0 || (m_frame_address && m_station_address && m_frame_address != m_station_address))
                     {
@@ -228,10 +206,10 @@ idle:
                     m_checksum = crc16_modbus(0xffff, &m_frame_address, 1);
 
                     // broadcast or station address match, enter the receiving state
-                    m_state = state_rtu_receive;
+                    m_state = state_receive;
                     m_buffer_len = 0;
                     m_last_ticks = m_timer->ticks();
-                    goto rtu_receive; // enter the rtu_receive state
+                    goto _receive; // enter the _receive state
                 }
                 return 0; // waiting for an event
             }
@@ -253,8 +231,8 @@ idle:
                 }
                 return 0; // waiting for user
             }
-        case state_rtu_receive: // actively receiving new data
-rtu_receive:
+        case state_receive: // actively receiving new data
+_receive:
             {
                 // check how much time has elapsed
                 system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
@@ -323,12 +301,12 @@ rtu_receive:
 
                 // execute the callback
                 if (m_handler)
-                    m_handler->frame_ready();
+                    m_handler->frame_ready(this);
 
                 // evaluate the switch statement again in case something has changed
                 return poll(); // jump to the start of the function to re-evalutate entire switch statement
             }
-        case state_rtu_tx_addr: // transmitting remote station address [RTU]
+        case state_tx_addr: // transmitting remote station address [RTU]
             {
                 // dump any incoming data
                 //
@@ -372,15 +350,15 @@ rtu_receive:
 
                     // address sent; update the CRC while we send the frame address and move to the 'TX PDU' state
                     m_checksum = crc16_modbus(0xffff, &m_frame_address, 1);
-                    m_state = state_rtu_tx_pdu;
+                    m_state = state_tx_pdu;
                     m_buffer_tx_pos = 0;
-                    goto rtu_tx_pdu;
+                    goto tx_pdu;
                 }
 
                 return 0; // waiting for room in the write buffer
             }
-        case state_rtu_tx_pdu: // transmitting frame PDU
-rtu_tx_pdu:
+        case state_tx_pdu: // transmitting frame PDU
+tx_pdu:
             {
                 // send the next chunk
                 if (int ec = m_stream->write(m_buffer + m_buffer_tx_pos, m_buffer_len - m_buffer_tx_pos))
@@ -404,15 +382,15 @@ rtu_tx_pdu:
                 if (m_buffer_tx_pos == m_buffer_len)
                 {
                     // if so, enter the 'TX CRC' state
-                    m_state = state_rtu_tx_crc;
+                    m_state = state_tx_crc;
                     m_buffer_tx_pos = 0;
-                    goto rtu_tx_crc; // enter the 'TX CRC' state
+                    goto tx_crc; // enter the 'TX CRC' state
                 }
 
                 return 0; // waiting for room in the write buffer
             }
-        case state_rtu_tx_crc: // transmitting the frame CRC
-rtu_tx_crc:
+        case state_tx_crc: // transmitting the frame CRC
+tx_crc:
             {
                 // similiar to above, except we send the CRC instead of the data
                 while (m_buffer_tx_pos != CRC_LEN)
@@ -441,14 +419,14 @@ rtu_tx_crc:
                 // check if we should enter the 'TX Wait' state
                 if (m_buffer_tx_pos == CRC_LEN)
                 {
-                    m_state = state_rtu_tx_wait;
-                    goto rtu_tx_wait; // enter the 'TX Wait' state
+                    m_state = state_tx_wait;
+                    goto tx_wait; // enter the 'TX Wait' state
                 }
 
                 return 0; // waiting for room in the write buffer
             }
-        case state_rtu_tx_wait: // waiting for the characters to finish transmitting
-rtu_tx_wait:
+        case state_tx_wait: // waiting for the characters to finish transmitting
+tx_wait:
             {
                 // dump our own echo
                 m_stream->read(NULL, (size_t)-1);
@@ -463,463 +441,6 @@ rtu_tx_wait:
                     m_last_ticks = m_timer->ticks();
                     m_state = state_dump;
                     goto dump;
-                }
-
-                return 0; // waiting for write buffer to drain
-            }
-        case state_ascii_rx_addr_high: // receiving the high or low byte of the slave address [ASCII]
-        case state_ascii_rx_addr_low:
-ascii_rx_addr:
-            {
-                // check how much time has elapsed
-                system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
-                if (elapsed > m_T1s)
-                {
-                    // timeout, go to the idle state
-                    m_state = state_idle;
-                    goto idle; // enter the 'idle' state
-                }
-
-                // attempt to read the next character
-                uint8_t ch;
-                int result = m_stream->read(&ch, 1);
-                if (result < 0)
-                {
-                    // read error, go to the idle state
-                    m_state = state_idle;
-                    goto idle; // enter the 'idle' state
-                }
-
-                // check if anything was done
-                if (!result)
-                    return m_T1s - elapsed; // wait for the timeout
-
-                // check if we got the start of frame character
-                if (ch == ':')
-                {
-                    // if so, start over and go back to the ascii_rx_addr_high state
-                    m_state = state_ascii_rx_addr_high;
-                    m_last_ticks = m_timer->ticks();
-                    goto ascii_rx_addr;
-                }
-
-                // make sure the character is valid
-                if (!ISXDIGIT(ch))
-                {
-                    // invalid character, go to the idle state
-                    m_state = state_idle;
-                    goto idle; // enter the 'idle' state
-                }
-
-                // convert the character from ascii to binary
-                ch = ASC2BIN(ch);
-
-                // check if we have read the low nibble yet
-                if (m_state == state_ascii_rx_addr_high)
-                {
-                    // if not, read low nibble state
-                    m_frame_address = ch;
-                    m_state = state_ascii_rx_addr_low;
-                    m_last_ticks = m_timer->ticks();
-                    goto ascii_rx_addr;
-                }
-
-                // shift the low nibble into the frame address
-                m_frame_address <<= 4;
-                m_frame_address |= ch;
-
-                // initialize the checksum and the data buffer
-                m_checksum = m_frame_address;
-                m_buffer_len = 0;
-                m_state = state_ascii_rx_pdu_high;
-                m_last_ticks = m_timer->ticks();
-                goto ascii_rx_pdu;
-            }
-        case state_ascii_rx_pdu_high: // receiving the high or low byte of the PDU [ASCII]
-        case state_ascii_rx_pdu_low:
-ascii_rx_pdu:
-            {
-                system_tick_t now = m_timer->ticks();
-                for (;;)
-                {
-                    // check how much time has elapsed
-                    system_tick_t elapsed = ELAPSED(m_last_ticks, now);
-                    if (elapsed > m_T1s)
-                    {
-                        // timeout, go to the idle state
-                        m_state = state_idle;
-                        goto idle; // enter the 'idle' state
-                    }
-
-                    // attempt to read the next character
-                    uint8_t ch;
-                    int result = m_stream->read(&ch, 1);
-                    if (result < 0)
-                    {
-                        // read error, go to the idle state
-                        m_state = state_idle;
-                        goto idle; // enter the 'idle' state
-                    }
-
-                    // check if anything was done
-                    if (!result)
-                        return m_T1s - elapsed; // wait for the timeout
-
-                    // check if we got the start of frame character
-                    if (ch == ':')
-                    {
-                        // if so, start over and go back to the ascii_rx_addr_high state
-                        m_state = state_ascii_rx_addr_high;
-                        m_last_ticks = now;
-                        goto ascii_rx_addr;
-                    }
-
-                    // check if we reached the end of the message
-                    if (ch == '\r')
-                    {
-                        // make sure we are not half way through a nibble
-                        if (m_state != state_ascii_rx_pdu_high)
-                        {
-                            // if so, drop the packet and go back to the 'idle' state
-                            m_state = state_idle;
-                            goto idle;
-                        }
-
-                        // got carriage return, wait for the final line feed
-                        m_state = state_ascii_rx_cr;
-                        m_last_ticks = m_timer->ticks();
-                        goto ascii_rx_cr;
-                    }
-
-                    // make sure the character is valid and that we have not over-run the end of the buffer
-                    if (!ISXDIGIT(ch) || m_buffer_len == m_buffer_max)
-                    {
-                        // invalid character or too many characters, go to the idle state
-                        m_state = state_idle;
-                        goto idle; // enter the 'idle' state
-                    }
-
-                    // convert the character from ascii to binary
-                    ch = ASC2BIN(ch);
-
-                    // check if we have read the low nibble yet
-                    if (m_state == state_ascii_rx_pdu_high)
-                    {
-                        // if not, go to the read low nibble state
-                        m_buffer[m_buffer_len] = ch;
-                        m_state = state_ascii_rx_pdu_low;
-                        m_last_ticks = now;
-                        continue;
-                    }
-
-                    // shift the low nibble into the data buffer
-                    uint8_t& bufp = m_buffer[m_buffer_len];
-                    bufp <<= 4;
-                    bufp |= ch;
-
-                    // update the checksum and move to the next character
-                    m_checksum = (uint8_t)(m_checksum + bufp);
-                    m_buffer_len++;
-                    m_state = state_ascii_rx_pdu_high;
-                    m_last_ticks = now;
-                    continue;
-                }
-            }
-        case state_ascii_rx_cr: // got carriage return, waiting for final line feed
-ascii_rx_cr:
-            {
-                // check how much time has elapsed
-                system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
-                if (elapsed > m_T1s)
-                {
-                    // timeout, go to the idle state
-                    m_state = state_idle;
-                    goto idle; // enter the 'idle' state
-                }
-
-                // attempt to read the next character
-                uint8_t ch;
-                int result = m_stream->read(&ch, 1);
-                if (result < 0)
-                {
-                    // read error, go to the idle state
-                    m_state = state_idle;
-                    goto idle; // enter the 'idle' state
-                }
-
-                // check if anything was done
-                if (!result)
-                    return m_T1s - elapsed; // wait for the timeout
-
-                // check if we got the start of frame character
-                if (ch == ':')
-                {
-                    // if so, start over and go back to the ascii_rx_addr_high state
-                    m_state = state_ascii_rx_addr_high;
-                    m_last_ticks = m_timer->ticks();
-                    goto ascii_rx_addr;
-                }
-
-                // make sure we got the line feed and that the checksum is correct
-                if (ch != '\n' && m_buffer_len >= min_pdu_length && m_checksum == 0)
-                {
-                    // if not, drop the packet and go back to the 'idle' state
-                    m_state = state_idle;
-                    goto idle; // enter the 'idle' state
-                }
-
-                // LRC passed, remove the LRC byte
-                m_buffer_len -= LRC_LEN;
-
-                // move to the 'Frame Ready' state
-                m_state = state_frame_ready;
-                m_last_ticks = m_timer->ticks();
-
-                // execute the callback
-                if (m_handler)
-                    m_handler->frame_ready();
-
-                // evaluate the switch statement again in case something has changed
-                return poll(); // jump to the start of the function to re-evalutate entire switch statement
-            }
-        case state_ascii_tx_sof: // transmitting start of frame character [ASCII]
-            {
-                // try and write the start of frame character
-                uint8_t ch = ':';
-                if (int ec = m_stream->write(&ch, 1))
-                {
-                    // check if something bad happened
-                    if (ec < 0)
-                    {
-                        m_state = state_exception;
-                        return 0; // fatal exception
-                    }
-
-                    // SOF; move to the 'TX ADDR HIGH' state
-                    m_state = state_ascii_tx_addr_high;
-                    goto ascii_tx_addr_high;
-                }
-
-                return 0; // waiting for room in the write buffer
-            }
-        case state_ascii_tx_addr_high: // transmitting remote station address [ASCII]
-ascii_tx_addr_high:
-            {
-                // convert the high nibble of the station address to ASCII HEX
-                uint8_t ch = m_frame_address >> 4;
-                ch = BIN2ASC(ch);
-
-                // try and write the remote station address
-                if (int ec = m_stream->write(&ch, 1))
-                {
-                    // check if something bad happened
-                    if (ec < 0)
-                    {
-                        m_state = state_exception;
-                        return 0; // fatal exception
-                    }
-
-                    // high nibble of address sent; now send the low nibble
-                    m_checksum = m_frame_address;
-                    m_state = state_ascii_tx_addr_low;
-                    goto ascii_tx_addr_low;
-                }
-
-                return 0; // waiting for room in the write buffer
-            }
-        case state_ascii_tx_addr_low: // transmitting remote station address [ASCII]
-ascii_tx_addr_low:
-            {
-                // convert the low nibble of the station address to ASCII HEX
-                uint8_t ch = m_frame_address & 0xf;
-                ch = BIN2ASC(ch);
-
-                // try and write the remote station address
-                if (int ec = m_stream->write(&ch, 1))
-                {
-                    // check if something bad happened
-                    if (ec < 0)
-                    {
-                        m_state = state_exception;
-                        return 0; // fatal exception
-                    }
-
-                    // low nibble of address sent; now send the high nibble of the first PDU byte
-                    m_state = state_ascii_tx_pdu_high;
-                    m_buffer_tx_pos = 0;
-                    goto ascii_tx_pdu_high;
-                }
-
-                return 0; // waiting for room in the write buffer
-            }
-        case state_ascii_tx_pdu_high: // transmitting PDU [ASCII]
-ascii_tx_pdu_high:
-            {
-                // convert the high nibble of the next PDU byte to ASCII HEX
-                uint8_t ch = m_buffer[m_buffer_tx_pos] >> 4;
-                ch = BIN2ASC(ch);
-
-                // try and write the remote station address
-                if (int ec = m_stream->write(&ch, 1))
-                {
-                    // check if something bad happened
-                    if (ec < 0)
-                    {
-                        m_state = state_exception;
-                        return 0; // fatal exception
-                    }
-
-                    // high nibble of address sent; update checksum and send the low nibble
-                    m_checksum = (uint8_t)(m_checksum + m_buffer[m_buffer_tx_pos]);
-                    m_state = state_ascii_tx_pdu_low;
-                    goto ascii_tx_pdu_low;
-                }
-
-                return 0; // waiting for room in the write buffer
-            }
-        case state_ascii_tx_pdu_low: // transmitting PDU [ASCII]
-ascii_tx_pdu_low:
-            {
-                // convert the low nibble of the next PDU byte to ASCII HEX
-                uint8_t ch = m_buffer[m_buffer_tx_pos] & 0xf;
-                ch = BIN2ASC(ch);
-
-                // try and write the remote station address
-                if (int ec = m_stream->write(&ch, 1))
-                {
-                    // check if something bad happened
-                    if (ec < 0)
-                    {
-                        m_state = state_exception;
-                        return 0; // fatal exception
-                    }
-
-                    // low nibble transmitted; move to the next byte in the PDU buffer
-                    m_buffer_tx_pos++;
-
-                    // check if we are finished
-                    if (m_buffer_tx_pos == m_buffer_len)
-                    {
-                        // negate the checksum (2's complement) so that everything will add to 0 at the receiving end
-                        m_checksum = (uint8_t)-(int8_t)m_checksum;
-
-                        // finished sending the PDU; now send the LRC high nibble
-                        m_state = state_ascii_tx_lrc_high;
-                        goto ascii_tx_lrc_high;
-                    }
-
-                    // low nibble of address sent; now send the high nibble of the next PDU byte
-                    m_state = state_ascii_tx_pdu_high;
-                    goto ascii_tx_pdu_high;
-                }
-
-                return 0; // waiting for room in the write buffer
-            }
-        case state_ascii_tx_lrc_high: // transmitting LRC high [ASCII]
-ascii_tx_lrc_high:
-            {
-                // convert the high nibble of the LRC to ASCII HEX
-                uint8_t ch = m_checksum >> 4;
-                ch = BIN2ASC(ch);
-
-                // try and write the value
-                if (int ec = m_stream->write(&ch, 1))
-                {
-                    // check if something bad happened
-                    if (ec < 0)
-                    {
-                        m_state = state_exception;
-                        return 0; // fatal exception
-                    }
-
-                    // high nibble sent; now send the low nibble
-                    m_state = state_ascii_tx_lrc_low;
-                    goto ascii_tx_lrc_low;
-                }
-
-                return 0; // waiting for room in the write buffer
-            }
-        case state_ascii_tx_lrc_low: // transmitting LRC low [ASCII]
-ascii_tx_lrc_low:
-            {
-                // convert the high nibble of the LRC to ASCII HEX
-                uint8_t ch = m_checksum & 0xf;
-                ch = BIN2ASC(ch);
-
-                // try and write the value
-                if (int ec = m_stream->write(&ch, 1))
-                {
-                    // check if something bad happened
-                    if (ec < 0)
-                    {
-                        m_state = state_exception;
-                        return 0; // fatal exception
-                    }
-
-                    // low nibble sent; now send the cr
-                    m_state = state_ascii_tx_cr;
-                    goto ascii_tx_cr;
-                }
-
-                return 0; // waiting for room in the write buffer
-            }
-        case state_ascii_tx_cr: // transmitting carriage return character [ASCII]
-ascii_tx_cr:
-            {
-                // try and write the start of frame character
-                uint8_t ch = '\r';
-                if (int ec = m_stream->write(&ch, 1))
-                {
-                    // check if something bad happened
-                    if (ec < 0)
-                    {
-                        m_state = state_exception;
-                        return 0; // fatal exception
-                    }
-
-                    // done; move to the line feed character
-                    m_state = state_ascii_tx_lf;
-                    goto ascii_tx_lf;
-                }
-
-                return 0; // waiting for room in the write buffer
-            }
-        case state_ascii_tx_lf: // transmitting carriage return character [ASCII]
-ascii_tx_lf:
-            {
-                // try and write the start of frame character
-                uint8_t ch = '\n';
-                if (int ec = m_stream->write(&ch, 1))
-                {
-                    // check if something bad happened
-                    if (ec < 0)
-                    {
-                        m_state = state_exception;
-                        return 0; // fatal exception
-                    }
-
-                    // done; move to the line feed character
-                    m_state = state_ascii_tx_wait;
-                    goto ascii_tx_wait;
-                }
-
-                return 0; // waiting for room in the write buffer
-            }
-        case state_ascii_tx_wait: // waiting for the characters to finish transmitting [ASCII]
-ascii_tx_wait:
-            {
-                // dump our own echo
-                m_stream->read(NULL, (size_t)-1);
-
-                // poll if the write has completed
-                if (m_stream->writeComplete())
-                {
-                    // transmission complete; disable the RS-485 transmitter
-                    m_stream->txEnable(false);
-
-                    // done! go to the idle state
-                    m_state = state_idle;
-                    goto idle;
                 }
 
                 return 0; // waiting for write buffer to drain
@@ -968,7 +489,7 @@ ascii_tx_wait:
         case state_queue: // buffer is ready
             {
                 // enter the transmit station address state
-                m_state = m_ascii ? state_ascii_tx_sof : state_rtu_tx_addr;
+                m_state = state_tx_addr;
 
                 // enable the transmitter
                 m_stream->txEnable(true);
@@ -981,7 +502,7 @@ ascii_tx_wait:
                 // Note: The timer should be set already when entering the
                 // collision state.
                 //
-                m_state = m_ascii ? state_idle : state_dump;
+                m_state = state_dump;
                 return; // collision, abort transmission and dump any further incoming data
             }
         default:
@@ -1007,7 +528,7 @@ ascii_tx_wait:
         case state_collision: // bus collision
             {
                 // more data started when we were not expecting it
-                m_state = m_ascii ? state_idle : state_dump;
+                m_state = state_dump;
                 return; // collision, dump any further incoming data
             }
         default:

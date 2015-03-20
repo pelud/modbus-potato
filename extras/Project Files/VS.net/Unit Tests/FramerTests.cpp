@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "../../../../src/ModbusRTU.h"
+#include "../../../../src/ModbusASCII.h"
 #include <stdexcept>
 #include <vector>
 #include <tuple>
@@ -160,22 +161,20 @@ namespace UnitTests
             // parse the frames
             CDummyStream stream(items);
             uint8_t buffer[MODBUS_DATA_BUFFER_SIZE];
-            CModbusRTU rtu(&stream, &stream, buffer, _countof(buffer));
-            rtu.setup(9600);
-            rtu.set_mode(true);
+            CModbusASCII framer(&stream, &stream, buffer, _countof(buffer));
 
             while (stream.ticks() < 10)
             {
-                rtu.poll();
+                framer.poll();
                 stream.increment(1);
             }
 
             // check the result
-            Assert::AreEqual(true, rtu.frame_ready());
-            Assert::AreEqual((byte)17, rtu.frame_address());
+            Assert::AreEqual(true, framer.frame_ready());
+            Assert::AreEqual((byte)17, framer.frame_address());
             uint8_t response[] = { 0x03, 0x00, 0x6B, 0x00, 0x03 };
-            Assert::AreEqual((size_t)_countof(response), rtu.buffer_len());
-            Assert::AreEqual(true, std::equal(response, response + _countof(response), rtu.buffer()));
+            Assert::AreEqual((size_t)_countof(response), framer.buffer_len());
+            Assert::AreEqual(true, std::equal(response, response + _countof(response), framer.buffer()));
         };
 
         [TestMethod]
@@ -246,9 +245,7 @@ namespace UnitTests
         {
             CDummyStream stream;
             uint8_t buffer[MODBUS_DATA_BUFFER_SIZE];
-            CModbusRTU rtu(&stream, &stream, buffer, _countof(buffer));
-            rtu.setup(9600);
-            rtu.set_mode(true);
+            CModbusASCII rtu(&stream, &stream, buffer, _countof(buffer));
 
             // skip some ticks to wait for the initial dump
             while (stream.ticks() < 5)

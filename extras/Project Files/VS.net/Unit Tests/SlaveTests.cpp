@@ -118,26 +118,25 @@ namespace UnitTests
         [TestMethod]
 		void TestSlaveConstructor()
 		{
-            CFramerDummy framer;
-            CModbusSlave slave(&framer, NULL);
+            CModbusSlave slave(NULL);
 		}
 
         [TestMethod]
 		void TestSlaveException()
 		{
             // create the slave object
-            CFramerDummy framer;
-            CModbusSlave slave(&framer, NULL);
+            CModbusSlave slave(NULL);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC03.htm
+            CFramerDummy framer;
             framer.set_frame_address(0x11);
             uint8_t data[] = { 0x03, 0x00, 0x6B, 0x00, 0x03 };
             std::copy(data, data + _countof(data), framer.buffer());
             framer.set_buffer_len(_countof(data));
 
             // simulate the frame received event
-            slave.frame_ready();
+            slave.frame_ready(&framer);
 
             // check the result
             Assert::AreEqual(true, framer.was_sent);
@@ -151,19 +150,19 @@ namespace UnitTests
 		void TestSlaveFC01ReadCoilStatus()
 		{
             // create the slave object
-            CFramerDummy framer;
             CSlaveHandler handler;
-            CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC01.htm
+            CFramerDummy framer;
             framer.set_frame_address(0x11);
             uint8_t data[] = { 0x01, 0x00, 0x13, 0x00, 0x25 };
             std::copy(data, data + _countof(data), framer.buffer());
             framer.set_buffer_len(_countof(data));
 
             // simulate the frame received event
-            slave.frame_ready();
+            slave.frame_ready(&framer);
 
             // check the result
             Assert::AreEqual(true, framer.was_sent);
@@ -182,19 +181,19 @@ namespace UnitTests
 		void TestSlaveFC02ReadDiscreteInputStatus()
 		{
             // create the slave object
-            CFramerDummy framer;
             CSlaveHandler handler;
-            CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC02.htm
+            CFramerDummy framer;
             framer.set_frame_address(0x11);
             uint8_t data[] = { 0x02, 0x00, 0xC4, 0x00, 0x16 };
             std::copy(data, data + _countof(data), framer.buffer());
             framer.set_buffer_len(_countof(data));
 
             // simulate the frame received event
-            slave.frame_ready();
+            slave.frame_ready(&framer);
 
             // check the result
             Assert::AreEqual(true, framer.was_sent);
@@ -213,19 +212,19 @@ namespace UnitTests
 		void TestSlaveFC03ReadHoldingRegister()
 		{
             // create the slave object
-            CFramerDummy framer;
             CSlaveHandler handler;
-            CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC03.htm
+            CFramerDummy framer;
             framer.set_frame_address(0x11);
             uint8_t data[] = { 0x03, 0x00, 0x6B, 0x00, 0x03 };
             std::copy(data, data + _countof(data), framer.buffer());
             framer.set_buffer_len(_countof(data));
 
             // simulate the frame received event
-            slave.frame_ready();
+            slave.frame_ready(&framer);
 
             // check the result
             Assert::AreEqual(true, framer.was_sent);
@@ -248,19 +247,19 @@ namespace UnitTests
 		void TestSlaveFC04ReadInputRegisterStatus()
 		{
             // create the slave object
-            CFramerDummy framer;
             CSlaveHandler handler;
-            CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC04.htm
+            CFramerDummy framer;
             framer.set_frame_address(0x11);
             uint8_t data[] = { 0x04, 0x00, 0x08, 0x00, 0x01 };
             std::copy(data, data + _countof(data), framer.buffer());
             framer.set_buffer_len(_countof(data));
 
             // simulate the frame received event
-            slave.frame_ready();
+            slave.frame_ready(&framer);
 
             // check the result
             Assert::AreEqual(true, framer.was_sent);
@@ -279,19 +278,19 @@ namespace UnitTests
 		void TestSlaveFC05ForceSingleCoil()
 		{
             // create the slave object
-            CFramerDummy framer;
             CSlaveHandler handler;
-            CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC05.htm
+            CFramerDummy framer;
             framer.set_frame_address(0x11);
             uint8_t data[] = { 0x05, 0x00, 0xAC, 0xFF, 0x00 };
             std::copy(data, data + _countof(data), framer.buffer());
             framer.set_buffer_len(_countof(data));
 
             // simulate the frame received event
-            slave.frame_ready();
+            slave.frame_ready(&framer);
 
             // check the result
             Assert::AreEqual(true, framer.was_sent);
@@ -310,19 +309,19 @@ namespace UnitTests
 		void TestSlaveFC06PresetSingleRegister()
 		{
             // create the slave object
-            CFramerDummy framer;
             CSlaveHandler handler;
-            CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC06.htm
+            CFramerDummy framer;
             framer.set_frame_address(0x11);
             uint8_t data[] = { 0x06, 0x00, 0x01, 0x00, 0x03 };
             std::copy(data, data + _countof(data), framer.buffer());
             framer.set_buffer_len(_countof(data));
 
             // simulate the frame received event
-            slave.frame_ready();
+            slave.frame_ready(&framer);
 
             // check the result
             Assert::AreEqual(true, framer.was_sent);
@@ -343,19 +342,19 @@ namespace UnitTests
 		void TestSlaveFC15ForceMultipleCoils()
 		{
             // create the slave object
-            CFramerDummy framer;
             CSlaveHandler handler;
-            CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC15.htm
+            CFramerDummy framer;
             framer.set_frame_address(0x11);
             uint8_t data[] = { 0x0F, 0x00, 0x13, 0x00, 0x0A, 0x02, 0xCD, 0x01 };
             std::copy(data, data + _countof(data), framer.buffer());
             framer.set_buffer_len(_countof(data));
 
             // simulate the frame received event
-            slave.frame_ready();
+            slave.frame_ready(&framer);
 
             // check the result
             Assert::AreEqual(true, framer.was_sent);
@@ -376,19 +375,19 @@ namespace UnitTests
 		void TestSlaveFC16WriteMultipleRegisters()
 		{
             // create the slave object
-            CFramerDummy framer;
             CSlaveHandler handler;
-            CModbusSlave slave(&framer, &handler);
+            CModbusSlave slave(&handler);
 
             // initialize with a test packet
             // from http://www.simplymodbus.ca/FC16.htm
+            CFramerDummy framer;
             framer.set_frame_address(0x11);
             uint8_t data[] = { 0x10, 0x00, 0x01, 0x00, 0x02, 0x04, 0x00, 0x0A, 0x01, 0x02 };
             std::copy(data, data + _countof(data), framer.buffer());
             framer.set_buffer_len(_countof(data));
 
             // simulate the frame received event
-            slave.frame_ready();
+            slave.frame_ready(&framer);
 
             // check the result
             Assert::AreEqual(true, framer.was_sent);

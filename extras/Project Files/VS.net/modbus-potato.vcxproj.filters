@@ -33,6 +33,9 @@
     <ClInclude Include="..\..\..\src\ModbusSlaveHandlerHolding.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\ModbusASCII.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\ModbusRTU.cpp">
@@ -42,6 +45,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ModbusSlaveHandlerHolding.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ModbusASCII.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

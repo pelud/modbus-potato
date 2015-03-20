@@ -16,6 +16,9 @@ namespace ModbusPotato
 #endif
 #endif
 
+    // forward declarations
+    class IFramer;
+
     /// <summary>
     /// Represents an endpoint that can read or write characters.
     /// </summary>
@@ -114,7 +117,7 @@ namespace ModbusPotato
         /// <summary>
         /// Called when a new frame has been received by the remote.
         /// </summary>
-        virtual void frame_ready() = 0;
+        virtual void frame_ready(IFramer* framer) = 0;
     };
 
     /// <summary>

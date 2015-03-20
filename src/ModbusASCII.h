@@ -1,5 +1,5 @@
-#ifndef __ModbusPotato_ModbusRTU_h__
-#define __ModbusPotato_ModbusRTU_h__
+#ifndef __ModbusPotato_ModbusASCII_h__
+#define __ModbusPotato_ModbusASCII_h__
 #include "ModbusInterface.h"
 namespace ModbusPotato
 {
@@ -14,23 +14,23 @@ namespace ModbusPotato
     /// using this class in order to calculate the proper inter-character and
     /// inter-frame delays.
     /// </remarks>
-    class CModbusRTU : public IFramer
+    class CModbusASCII : public IFramer
     {
     public:
         /// <summary>
         /// Constructor for the RTU framer.
         /// </summary>
-        CModbusRTU(IStream* stream, ITimeProvider* timer, uint8_t* buffer, size_t buffer_max);
+        CModbusASCII(IStream* stream, ITimeProvider* timer, uint8_t* buffer, size_t buffer_max);
 
         /// <summary>
-        /// Initialize any special values.
+        /// Sets the timeout, in milliseconds
         /// </summary>
         /// <remarks>
-        /// Notice that this method does NOT setup the serial link (i.e.
-        /// Serial.begin(...)).  The baud rate is only needed to calculate
-        /// the inter-character delays.
+        /// The poll() method must be called and the timer adjusted according
+        /// to the semantics described in IFramer::poll() for the new timeout
+        /// to take effect.
         /// </remarks>
-        void setup(unsigned long baud);
+        void set_timeout(unsigned int milliseconds);
 
         virtual void set_handler(IFrameHandler* handler) { m_handler = handler; }
         virtual uint8_t station_address() const { return m_station_address; }
@@ -49,39 +49,44 @@ namespace ModbusPotato
     private:
         enum
         {
-            CRC_LEN = 2,
-            default_baud_rate = 19200,
-            default_3t5_period = 1750, // T3.5 character timeout for high baud rates, in microseconds
-            default_1t5_period = 750, // T1.5 character timeout for high baud rates, in microseconds
-            minimum_tick_count = 2,
-            quantization_rounding_count = 2,
-            min_pdu_length = 3, // minimum PDU length, excluding the station address. function code and two crc bytes
+            LRC_LEN = 1,
+            min_pdu_length = 2, // minimum PDU length, excluding the station address. function code and one LRC byte
+            default_timeout = 1000, // default timeout, in milliseconds
         };
         IStream* m_stream;
         ITimeProvider* m_timer;
         IFrameHandler* m_handler;
         uint8_t* m_buffer;
         size_t m_buffer_len, m_buffer_max;
-        uint16_t m_checksum;
+        uint8_t m_checksum;
         uint8_t m_station_address, m_frame_address;
         uint8_t m_buffer_tx_pos;
         enum state_type
         {
             state_exception,
-            state_dump,
             state_idle,
             state_frame_ready,
             state_queue,
             state_collision,
-            state_receive,
-            state_tx_addr,
-            state_tx_pdu,
-            state_tx_crc,
+            state_rx_addr_high,
+            state_rx_addr_low,
+            state_rx_pdu_high,
+            state_rx_pdu_low,
+            state_rx_cr,
+            state_tx_sof,
+            state_tx_addr_high,
+            state_tx_addr_low,
+            state_tx_pdu_high,
+            state_tx_pdu_low,
+            state_tx_lrc_high,
+            state_tx_lrc_low,
+            state_tx_cr,
+            state_tx_lf,
             state_tx_wait,
         };
         state_type m_state;
         system_tick_t m_last_ticks;
-        system_tick_t m_T3p5, m_T1p5;
+        system_tick_t m_T1s;
     };
 }
 #endif
