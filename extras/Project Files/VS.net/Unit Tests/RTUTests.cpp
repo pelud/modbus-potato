@@ -116,7 +116,7 @@ namespace UnitTests
         };
 
         [TestMethod]
-        void TestReceiveFrame()
+        void TestReceiveRTUFrame()
         {
             std::vector<std::tr1::tuple<system_tick_t /*start*/, std::string /*data*/> > items;
 
@@ -144,6 +144,36 @@ namespace UnitTests
             Assert::AreEqual((byte)2, rtu.frame_address());
             Assert::AreEqual(1u, rtu.buffer_len());
             Assert::AreEqual((byte)7, rtu.buffer()[0]);
+        };
+
+        [TestMethod]
+        void TestReceiveASCIIFrame()
+        {
+            std::vector<std::tr1::tuple<system_tick_t /*start*/, std::string /*data*/> > items;
+
+            // incoming datagram at 5.51ms
+            uint8_t frame1[] = ":1103006B00037E\r\n";
+            items.push_back(std::tr1::make_tuple(5, std::string(frame1, frame1 + _countof(frame1) - 1)));
+
+            // parse the frames
+            CDummyStream stream(items);
+            uint8_t buffer[MODBUS_DATA_BUFFER_SIZE];
+            CModbusRTU rtu(&stream, &stream, buffer, _countof(buffer));
+            rtu.setup(9600);
+            rtu.set_mode(true);
+
+            while (stream.ticks() < 10)
+            {
+                rtu.poll();
+                stream.increment(1);
+            }
+
+            // check the result
+            Assert::AreEqual(true, rtu.frame_ready());
+            Assert::AreEqual((byte)17, rtu.frame_address());
+            uint8_t response[] = { 0x03, 0x00, 0x6B, 0x00, 0x03 };
+            Assert::AreEqual((size_t)_countof(response), rtu.buffer_len());
+            Assert::AreEqual(true, std::equal(response, response + _countof(response), rtu.buffer()));
         };
 
         [TestMethod]

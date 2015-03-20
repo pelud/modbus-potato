@@ -2,6 +2,7 @@
 #ifdef _MSC_VER
 #undef max
 #endif
+#define ISXDIGIT(ch) ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f'))
 namespace ModbusPotato
 {
     // calculate the inter-character delay (T3.5 and T1.5) values
@@ -50,11 +51,12 @@ namespace ModbusPotato
     CModbusRTU::CModbusRTU(IStream* stream, ITimeProvider* timer, uint8_t* buffer, size_t buffer_max)
         :   m_stream(stream)
         ,   m_timer(timer)
+        ,   m_ascii()
         ,   m_buffer(buffer)
         ,   m_buffer_max(buffer_max)
         ,   m_buffer_len()
         ,   m_handler()
-        ,   m_crc()
+        ,   m_checksum()
         ,   m_station_address()
         ,   m_frame_address()
         ,   m_buffer_tx_pos()
@@ -62,6 +64,7 @@ namespace ModbusPotato
         ,   m_last_ticks()
         ,   m_T3p5()
         ,   m_T1p5()
+        ,   m_T1s()
     {
         if (!m_stream || !m_timer || !m_buffer || m_buffer_max < 3)
         {
@@ -110,6 +113,9 @@ namespace ModbusPotato
         // make sure the delays are each at least 2 counts
         m_T3p5 = m_T3p5 < minimum_tick_count ? minimum_tick_count : m_T3p5;
         m_T1p5 = m_T1p5 < minimum_tick_count ? minimum_tick_count : m_T1p5;
+
+        // calculate the delay for 1 second
+        m_T1s = 1000000 / m_timer->microseconds_per_tick();
     }
 
     unsigned long CModbusRTU::poll()
@@ -159,7 +165,13 @@ namespace ModbusPotato
         //
         switch (m_state)
         {
-        case state_dump: dump: // dump any unwanted incoming data
+        case state_exception: // fatal error - framer shut down
+            {
+                // do nothing
+                return 0;
+            }
+        case state_dump: // dump any unwanted incoming data
+dump:
             {
                 // if not, check how much time has elapsed
                 system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
@@ -182,10 +194,25 @@ namespace ModbusPotato
                 // if the timer has not finished, then return the amount of time remaining
                 return m_T3p5 - elapsed;
             }
-        case state_idle: idle: // waiting for something to happen
+        case state_idle: // waiting for something to happen
+idle:       for (;;)
             {
                 if (int ec = m_stream->read(&m_frame_address, 1))
                 {
+                    // check if we are in ascii mode
+                    if (m_ascii)
+                    {
+                        // make sure the character was read properly and that it's the start of frame
+                        if (ec > 0 && m_frame_address == ':')
+                        {
+                            // if so, go to the ascii rx address high state
+                            m_state = state_ascii_rx_addr_high;
+                            m_last_ticks = m_timer->ticks();
+                            goto ascii_rx_addr;
+                        }
+                        continue; // stay in the idle state
+                    }
+
                     // make sure the character is valid
                     if (ec < 0 || (m_frame_address && m_station_address && m_frame_address != m_station_address))
                     {
@@ -196,17 +223,36 @@ namespace ModbusPotato
                     }
 
                     // initialize the CRC and accumulate the frame address
-                    m_crc = crc16_modbus(0xffff, &m_frame_address, 1);
+                    m_checksum = crc16_modbus(0xffff, &m_frame_address, 1);
 
                     // broadcast or station address match, enter the receiving state
-                    m_state = state_receive;
+                    m_state = state_rtu_receive;
                     m_buffer_len = 0;
                     m_last_ticks = m_timer->ticks();
-                    goto receive; // enter the receive state
+                    goto rtu_receive; // enter the rtu_receive state
                 }
                 return 0; // waiting for an event
             }
-        case state_receive: receive: // actively receiving new data
+        case state_frame_ready: // waiting for the application layer to process the frame
+        case state_queue: // waiting for the application layer to create frame for transmission
+        case state_collision: // bus collision
+            {
+                // check for timeout or collisions
+                //
+                // If this happens in the frame_ready state then it means that
+                // the master probably thinks that the slave timed out and is
+                // re-transmitting, or there are multiple masters or slaves
+                // with the same address.
+                //
+                if (m_stream->read(NULL, (size_t)-1))
+                {
+                    m_state = state_collision;
+                    m_last_ticks = m_timer->ticks();
+                }
+                return 0; // waiting for user
+            }
+        case state_rtu_receive: // actively receiving new data
+rtu_receive:
             {
                 // check how much time has elapsed
                 system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
@@ -228,7 +274,7 @@ namespace ModbusPotato
                     }
 
                     // update the CRC and advance the buffer pointer
-                    m_crc = crc16_modbus(m_crc, m_buffer + m_buffer_len, ec);
+                    m_checksum = crc16_modbus(m_checksum, m_buffer + m_buffer_len, ec);
                     m_buffer_len += ec;
 
                     // reset the timer
@@ -246,44 +292,41 @@ namespace ModbusPotato
                 }
 
                 // check if the T3.5 timer has elapsed
-                if (elapsed >= m_T3p5)
+                if (elapsed < m_T3p5)
+                    return m_T3p5 - elapsed; // wait for the timer to elapse
+
+                // check the CRC
+                //
+                // Note: They did the CRC properly in Modbus, so all we
+                // have to do is make sure the CRC value is 0 after the two
+                // CRC bytes from the frame have been accumulated.  We
+                // don't really need the length check as it's unlikely for
+                // the crc to be 0 without receiving the check bytes, but
+                // it doesn't hurt to have it.
+                //
+                if (m_buffer_len < min_pdu_length || m_checksum != 0)
                 {
-                    // check the CRC
-                    //
-                    // Note: They did the CRC properly in Modbus, so all we
-                    // have to do is make sure the CRC value is 0 after the two
-                    // CRC bytes from the frame have been accumulated.  We
-                    // don't really need the length check as it's unlikely for
-                    // the crc to be 0 without receiving the check bytes, but
-                    // it doesn't hurt to have it.
-                    //
-                    if (m_buffer_len < min_pdu_length || m_crc)
-                    {
-                        // if the CRC failed, then dump the frame and go back to idle
-                        m_last_ticks = m_timer->ticks();
-                        m_state = state_idle;
-                        goto idle; // enter the idle state
-                    }
-
-                    // crc passed, remove the two CRC bytes
-                    m_buffer_len -= CRC_LEN;
-
-                    // move to the 'Frame Ready' state
-                    m_state = state_frame_ready;
+                    // if the CRC failed, then dump the frame and go back to idle
                     m_last_ticks = m_timer->ticks();
-
-                    // execute the callback
-                    if (m_handler)
-                        m_handler->frame_ready();
-
-                    // evaluate the switch statement again in case something has changed
-                    return poll(); // jump to the start of the function to re-evalutate entire switch statement
+                    m_state = state_idle;
+                    goto idle; // enter the idle state
                 }
 
-                // wait for the timer to elapse
-                return m_T3p5 - elapsed;
+                // crc passed, remove the two CRC bytes
+                m_buffer_len -= CRC_LEN;
+
+                // move to the 'Frame Ready' state
+                m_state = state_frame_ready;
+                m_last_ticks = m_timer->ticks();
+
+                // execute the callback
+                if (m_handler)
+                    m_handler->frame_ready();
+
+                // evaluate the switch statement again in case something has changed
+                return poll(); // jump to the start of the function to re-evalutate entire switch statement
             }
-        case state_tx_addr: // transmitting remote station address
+        case state_rtu_tx_addr: // transmitting remote station address
             {
                 // dump any incoming data
                 //
@@ -326,15 +369,16 @@ namespace ModbusPotato
                     }
 
                     // address sent; update the CRC while we send the frame address and move to the 'TX PDU' state
-                    m_crc = crc16_modbus(0xffff, &m_frame_address, 1);
-                    m_state = state_tx_pdu;
+                    m_checksum = crc16_modbus(0xffff, &m_frame_address, 1);
+                    m_state = state_rtu_tx_pdu;
                     m_buffer_tx_pos = 0;
-                    goto tx_pdu;
+                    goto rtu_tx_pdu;
                 }
 
                 return 0; // waiting for room in the write buffer
             }
-        case state_tx_pdu: tx_pdu: // transmitting frame PDU
+        case state_rtu_tx_pdu: // transmitting frame PDU
+rtu_tx_pdu:
             {
                 // send the next chunk
                 if (int ec = m_stream->write(m_buffer + m_buffer_tx_pos, m_buffer_len - m_buffer_tx_pos))
@@ -347,7 +391,7 @@ namespace ModbusPotato
                     }
 
                     // update the CRC while we send the bytes and advance the buffer tx position
-                    m_crc = crc16_modbus(m_crc, m_buffer + m_buffer_tx_pos, ec);
+                    m_checksum = crc16_modbus(m_checksum, m_buffer + m_buffer_tx_pos, ec);
                     m_buffer_tx_pos += ec;
                 }
 
@@ -358,20 +402,21 @@ namespace ModbusPotato
                 if (m_buffer_tx_pos == m_buffer_len)
                 {
                     // if so, enter the 'TX CRC' state
-                    m_state = state_tx_crc;
+                    m_state = state_rtu_tx_crc;
                     m_buffer_tx_pos = 0;
-                    goto tx_crc; // enter the 'TX CRC' state
+                    goto rtu_tx_crc; // enter the 'TX CRC' state
                 }
 
                 return 0; // waiting for room in the write buffer
             }
-        case state_tx_crc: tx_crc: // transmitting the frame CRC
+        case state_rtu_tx_crc: // transmitting the frame CRC
+rtu_tx_crc:
             {
                 // similiar to above, except we send the CRC instead of the data
                 while (m_buffer_tx_pos != CRC_LEN)
                 {
                     // write the next byte in the CRC
-                    uint8_t ch = (uint8_t)m_crc;
+                    uint8_t ch = (uint8_t)m_checksum;
                     int ec = m_stream->write(&ch, 1);
                     if (!ec)
                         break;
@@ -384,7 +429,7 @@ namespace ModbusPotato
                     }
 
                     // advance the high byte of the CRC to the low byte and start again
-                    m_crc >>= 8;
+                    m_checksum >>= 8;
                     m_buffer_tx_pos++;
                 }
 
@@ -394,13 +439,14 @@ namespace ModbusPotato
                 // check if we should enter the 'TX Wait' state
                 if (m_buffer_tx_pos == CRC_LEN)
                 {
-                    m_state = state_tx_wait;
-                    goto tx_wait; // enter the 'TX Wait' state
+                    m_state = state_rtu_tx_wait;
+                    goto rtu_tx_wait; // enter the 'TX Wait' state
                 }
 
                 return 0; // waiting for room in the write buffer
             }
-        case state_tx_wait: tx_wait: // waiting for the characters to finish transmitting
+        case state_rtu_tx_wait: // waiting for the characters to finish transmitting
+rtu_tx_wait:
             {
                 // dump our own echo
                 m_stream->read(NULL, (size_t)-1);
@@ -419,28 +465,223 @@ namespace ModbusPotato
 
                 return 0; // waiting for write buffer to drain
             }
-        case state_frame_ready: // waiting for the application layer to process the frame
-        case state_queue: // waiting for the application layer to create frame for transmission
-        case state_collision: // bus collision
+        case state_ascii_rx_addr_high: // receiving the high or low byte of the slave address [ASCII]
+        case state_ascii_rx_addr_low:
+ascii_rx_addr:
+            for (;;)
             {
-                // check for timeout or collisions
-                //
-                // If this happens in the frame_ready state then it means that
-                // the master probably thinks that the slave timed out and is
-                // re-transmitting, or there are multiple masters or slaves
-                // with the same address.
-                //
-                if (m_stream->read(NULL, (size_t)-1))
+                // check how much time has elapsed
+                system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
+                if (elapsed > m_T1s)
                 {
-                    m_state = state_collision;
-                    m_last_ticks = m_timer->ticks();
+                    // timeout, go to the idle state
+                    m_state = state_idle;
+                    goto idle; // enter the 'idle' state
                 }
-                return 0; // waiting for user
+
+                // attempt to read the next character
+                uint8_t ch;
+                int result = m_stream->read(&ch, 1);
+                if (result < 0)
+                {
+                    // read error, go to the idle state
+                    m_state = state_idle;
+                    goto idle; // enter the 'idle' state
+                }
+
+                // check if anything was done
+                if (!result)
+                    return m_T1s - elapsed; // wait for the timeout
+
+                // check if we got the start of frame character
+                if (ch == ':')
+                {
+                    // if so, start over and go back to the ascii_rx_addr_high state
+                    m_state = state_ascii_rx_addr_high;
+                    m_last_ticks = m_timer->ticks();
+                    goto ascii_rx_addr;
+                }
+
+                // make sure the character is valid
+                if (!ISXDIGIT(ch))
+                {
+                    // invalid character, go to the idle state
+                    m_state = state_idle;
+                    goto idle; // enter the 'idle' state
+                }
+
+                // convert the character from ascii to binary
+                ch |= 0x20; // convert to lower case
+                ch -= ch <= '9' ? '0' : 'a' - 10;
+
+                // check if we have read the low nibble yet
+                if (m_state == state_ascii_rx_addr_high)
+                {
+                    // if not, read low nibble state
+                    m_frame_address = ch;
+                    m_state = state_ascii_rx_addr_low;
+                    m_last_ticks = m_timer->ticks();
+                    continue;
+                }
+
+                // shift the low nibble into the frame address
+                m_frame_address <<= 4;
+                m_frame_address |= ch;
+
+                // initialize the checksum and the data buffer
+                m_checksum = m_frame_address;
+                m_buffer_len = 0;
+                m_state = state_ascii_rx_pdu_high;
+                m_last_ticks = m_timer->ticks();
+                goto ascii_rx_pdu;
             }
-        case state_exception: // fatal error - framer shut down
+        case state_ascii_rx_pdu_high: // receiving the high or low byte of the PDU [ASCII]
+        case state_ascii_rx_pdu_low:
+ascii_rx_pdu:
             {
-                // do nothing
-                return 0;
+                system_tick_t now = m_timer->ticks();
+                for (;;)
+                {
+                    // check how much time has elapsed
+                    system_tick_t elapsed = ELAPSED(m_last_ticks, now);
+                    if (elapsed > m_T1s)
+                    {
+                        // timeout, go to the idle state
+                        m_state = state_idle;
+                        goto idle; // enter the 'idle' state
+                    }
+
+                    // attempt to read the next character
+                    uint8_t ch;
+                    int result = m_stream->read(&ch, 1);
+                    if (result < 0)
+                    {
+                        // read error, go to the idle state
+                        m_state = state_idle;
+                        goto idle; // enter the 'idle' state
+                    }
+
+                    // check if anything was done
+                    if (!result)
+                        return m_T1s - elapsed; // wait for the timeout
+
+                    // check if we got the start of frame character
+                    if (ch == ':')
+                    {
+                        // if so, start over and go back to the ascii_rx_addr_high state
+                        m_state = state_ascii_rx_addr_high;
+                        m_last_ticks = now;
+                        goto ascii_rx_addr;
+                    }
+
+                    // check if we reached the end of the message
+                    if (ch == '\r')
+                    {
+                        // make sure we are not half way through a nibble
+                        if (m_state != state_ascii_rx_pdu_high)
+                        {
+                            // if so, drop the packet and go back to the 'idle' state
+                            m_state = state_idle;
+                            goto idle;
+                        }
+
+                        // got carriage return, wait for the final line feed
+                        m_state = state_ascii_rx_cr;
+                        m_last_ticks = m_timer->ticks();
+                        goto ascii_rx_cr;
+                    }
+
+                    // make sure the character is valid and that we have not over-run the end of the buffer
+                    if (!ISXDIGIT(ch) || m_buffer_len == m_buffer_max)
+                    {
+                        // invalid character or too many characters, go to the idle state
+                        m_state = state_idle;
+                        goto idle; // enter the 'idle' state
+                    }
+
+                    // convert the character from ascii to binary
+                    ch |= 0x20; // convert to lower case
+                    ch -= ch <= '9' ? '0' : 'a' - 10;
+
+                    // check if we have read the low nibble yet
+                    if (m_state == state_ascii_rx_pdu_high)
+                    {
+                        // if not, go to the read low nibble state
+                        m_buffer[m_buffer_len] = ch;
+                        m_state = state_ascii_rx_pdu_low;
+                        m_last_ticks = now;
+                        continue;
+                    }
+
+                    // shift the low nibble into the data buffer
+                    uint8_t& bufp = m_buffer[m_buffer_len];
+                    bufp <<= 4;
+                    bufp |= ch;
+
+                    // update the checksum and move to the next character
+                    m_checksum = (uint8_t)(m_checksum + bufp);
+                    m_buffer_len++;
+                    m_state = state_ascii_rx_pdu_high;
+                    m_last_ticks = now;
+                    continue;
+                }
+            }
+        case state_ascii_rx_cr: // got carriage return, waiting for final line feed
+ascii_rx_cr:
+            {
+                // check how much time has elapsed
+                system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
+                if (elapsed > m_T1s)
+                {
+                    // timeout, go to the idle state
+                    m_state = state_idle;
+                    goto idle; // enter the 'idle' state
+                }
+
+                // attempt to read the next character
+                uint8_t ch;
+                int result = m_stream->read(&ch, 1);
+                if (result < 0)
+                {
+                    // read error, go to the idle state
+                    m_state = state_idle;
+                    goto idle; // enter the 'idle' state
+                }
+
+                // check if anything was done
+                if (!result)
+                    return m_T1s - elapsed; // wait for the timeout
+
+                // check if we got the start of frame character
+                if (ch == ':')
+                {
+                    // if so, start over and go back to the ascii_rx_addr_high state
+                    m_state = state_ascii_rx_addr_high;
+                    m_last_ticks = m_timer->ticks();
+                    goto ascii_rx_addr;
+                }
+
+                // make sure we got the line feed and that the checksum is correct
+                if (ch != '\n' && m_buffer_len >= min_pdu_length && m_checksum == 0)
+                {
+                    // if not, drop the packet and go back to the 'idle' state
+                    m_state = state_idle;
+                    goto idle; // enter the 'idle' state
+                }
+
+                // LRC passed, remove the LRC byte
+                m_buffer_len -= LRC_LEN;
+
+                // move to the 'Frame Ready' state
+                m_state = state_frame_ready;
+                m_last_ticks = m_timer->ticks();
+
+                // execute the callback
+                if (m_handler)
+                    m_handler->frame_ready();
+
+                // evaluate the switch statement again in case something has changed
+                return poll(); // jump to the start of the function to re-evalutate entire switch statement
             }
         }
 
@@ -486,7 +727,7 @@ namespace ModbusPotato
         case state_queue: // buffer is ready
             {
                 // enter the transmit station address state
-                m_state = state_tx_addr;
+                m_state = state_rtu_tx_addr;
 
                 // enable the transmitter
                 m_stream->txEnable(true);

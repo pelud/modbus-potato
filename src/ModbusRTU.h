@@ -30,6 +30,14 @@ namespace ModbusPotato
         /// </remarks>
         void setup(unsigned long baud);
 
+        /// <summary>
+        /// Selects between RTU and ASCII mode.
+        /// </summary>
+        /// <remarks>
+        /// If the mode is not set, the default will be RTU.
+        /// </remarks>
+        void set_mode(bool ascii) { m_ascii = ascii; }
+
         virtual void set_handler(IFrameHandler* handler) { m_handler = handler; }
         virtual uint8_t station_address() const { return m_station_address; }
         virtual void set_station_address(uint8_t address) { m_station_address = address; }
@@ -48,6 +56,7 @@ namespace ModbusPotato
         enum
         {
             CRC_LEN = 2,
+            LRC_LEN = 1,
             default_baud_rate = 19200,
             default_3t5_period = 1750, // T3.5 character timeout for high baud rates, in microseconds
             default_1t5_period = 750, // T1.5 character timeout for high baud rates, in microseconds
@@ -58,27 +67,41 @@ namespace ModbusPotato
         IStream* m_stream;
         ITimeProvider* m_timer;
         IFrameHandler* m_handler;
+        bool m_ascii;
         uint8_t* m_buffer;
         size_t m_buffer_len, m_buffer_max;
-        uint16_t m_crc;
+        uint16_t m_checksum;
         uint8_t m_station_address, m_frame_address;
         uint8_t m_buffer_tx_pos;
         enum state_type
         {
+            state_exception,
             state_dump,
             state_idle,
-            state_receive,
             state_frame_ready,
             state_queue,
-            state_tx_addr,
-            state_tx_pdu,
-            state_tx_crc,
-            state_tx_wait,
             state_collision,
-            state_exception
+            state_rtu_receive,
+            state_rtu_tx_addr,
+            state_rtu_tx_pdu,
+            state_rtu_tx_crc,
+            state_rtu_tx_wait,
+            state_ascii_rx_addr_high,
+            state_ascii_rx_addr_low,
+            state_ascii_rx_pdu_high,
+            state_ascii_rx_pdu_low,
+            state_ascii_rx_cr,
+            state_ascii_tx_addr_high,
+            state_ascii_tx_addr_low,
+            state_ascii_tx_pdu_high,
+            state_ascii_tx_pdu_low,
+            state_ascii_tx_crc_high,
+            state_ascii_tx_crc_low,
+            state_ascii_tx_wait_high,
+            state_ascii_tx_wait_low,
         };
         state_type m_state;
         system_tick_t m_last_ticks;
-        system_tick_t m_T3p5, m_T1p5;
+        system_tick_t m_T3p5, m_T1p5, m_T1s;
     };
 }
