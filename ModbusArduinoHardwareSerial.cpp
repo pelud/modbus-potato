@@ -1,4 +1,7 @@
 #include "ModbusArduinoHardwareSerial.h"
+#if defined(ENERGIA) && !defined(SERIAL_BUFFER_SIZE)
+#define SERIAL_BUFFER_SIZE 16 // See HardwareSerial.cpp
+#endif
 #ifdef ARDUINO
 namespace ModbusPotato
 {
@@ -84,7 +87,7 @@ namespace ModbusPotato
         }
 
         // read the data
-        return m_serial->readBytes(buffer, a);
+        return m_serial->readBytes((char*)buffer, a);
     }
 
     int CModbusArduinoHardwareSerial::write(uint8_t* buffer, size_t len)
