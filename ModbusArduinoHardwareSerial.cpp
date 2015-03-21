@@ -162,9 +162,9 @@ namespace ModbusPotato
 #define UCAxIE        UCA0IE
 #define UCAxIFG       UCA0IFG
 #endif
-        return *(&(UCAxIE) + m_port_number) & UCTXIE
+        return *(&(UCAxIE) + m_port_number) & UCTXIE;
 #elif defined(__MSP430_HAS_USCI__) // MSP430
-        return *(&(UC0IE) + m_port_number) & UCA0TXIE
+        return *(&(UC0IE) + m_port_number) & UCA0TXIE;
 #else
 #error CModbusArduinoHardwareSerial::writeComplete() must be tailored to your platform 
 #endif
