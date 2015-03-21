@@ -157,14 +157,14 @@ namespace ModbusPotato
 #elif defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_EUSCI_A0__) || defined(__MSP430_HAS_EUSCI_A1__) // MSP430
 #if defined(__MSP430_HAS_EUSCI_A0__) || defined(__MSP430_HAS_EUSCI_A1__)
 #define UCAxIE        UCA0IE_L
-#define UCAxIFG       UCA0IFG_L
 #else
 #define UCAxIE        UCA0IE
-#define UCAxIFG       UCA0IFG
 #endif
-        return *(&(UCAxIE) + m_port_number) & UCTXIE;
+        // check if the interrupt handler is turned off
+        return (*(&(UCAxIE) + m_port_number) & UCTXIE) == 0;
 #elif defined(__MSP430_HAS_USCI__) // MSP430
-        return *(&(UC0IE) + m_port_number) & UCA0TXIE;
+        // check if the interrupt handler is turned off
+        return (*(&(UC0IE) + m_port_number) & UCA0TXIE) == 0;
 #else
 #error CModbusArduinoHardwareSerial::writeComplete() must be tailored to your platform 
 #endif
