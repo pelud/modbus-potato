@@ -14,7 +14,7 @@ namespace ModbusPotato
         case 0:
             m_serial = &Serial;
             break;
-#ifdef HAVE_HWSERIAL1
+#if defined(HAVE_HWSERIAL1) || defined(SERIAL1_AVAILABLE)
         case 1:
             m_serial = &Serial1;
             break;
@@ -115,6 +115,7 @@ namespace ModbusPotato
 
     bool CModbusArduinoHardwareSerial::writeComplete()
     {
+#if defined(UBRRH) || defined(UBRR0H) // AVR
         switch (m_port_number)
         {
         case 0:
@@ -133,30 +134,41 @@ namespace ModbusPotato
             // the UDR register.
             //
             return bit_is_clear(UCSRB, UDRIE0) && bit_is_set(UCSRA, TXC0);
-#elif defined(UBRR0H)
+#else
             return bit_is_clear(UCSR0B, UDRIE0) && bit_is_set(UCSR0A, TXC0);
+#endif
+            break;
+#ifdef UBRR1H
+        case 1:
+            return bit_is_clear(UCSR1B, UDRIE0) && bit_is_set(UCSR1A, TXC0);
+            break;
+#endif
+#ifdef UBRR2H
+        case 2:
+            return bit_is_clear(UCSR2B, UDRIE0) && bit_is_set(UCSR2A, TXC0);
+            break;
+#endif
+#ifdef UBRR3H
+        case 3:
+            return bit_is_clear(UCSR3B, UDRIE0) && bit_is_set(UCSR3A, TXC0);
+            break;
+#endif
+        }
+#elif defined(__MSP430_HAS_USCI_A0__) || defined(__MSP430_HAS_USCI_A1__) || defined(__MSP430_HAS_EUSCI_A0__) || defined(__MSP430_HAS_EUSCI_A1__) // MSP430
+#if defined(__MSP430_HAS_EUSCI_A0__) || defined(__MSP430_HAS_EUSCI_A1__)
+#define UCAxIE        UCA0IE_L
+#define UCAxIFG       UCA0IFG_L
+#else
+#define UCAxIE        UCA0IE
+#define UCAxIFG       UCA0IFG
+#endif
+        return *(&(UCAxIE) + m_port_number) & UCTXIE
+#elif defined(__MSP430_HAS_USCI__) // MSP430
+        return *(&(UC0IE) + m_port_number) & UCA0TXIE
 #else
 #error CModbusArduinoHardwareSerial::writeComplete() must be tailored to your platform 
 #endif
-            break;
-        case 1:
-#ifdef UBRR1H
-            return bit_is_clear(UCSR1B, UDRIE0) && bit_is_set(UCSR1A, TXC0);
-#endif
-            break;
-        case 2:
-#ifdef UBRR2H
-            return bit_is_clear(UCSR2B, UDRIE0) && bit_is_set(UCSR2A, TXC0);
-#endif
-            break;
-        case 3:
-#ifdef UBRR3H
-            return bit_is_clear(UCSR3B, UDRIE0) && bit_is_set(UCSR3A, TXC0);
-#endif
-            break;
-        }
-
-        return false; // not supported by hardware
+        return false; // invalid port number or not supported by hardware
     }
 
     int CModbusArduinoHardwareSerial::availableForWrite()
