@@ -26,6 +26,10 @@ namespace UnitTests
             ,   m_items(items)
             ,   m_time()
             ,   m_last_write()
+            ,   m_rx_status()
+            ,   m_tx_status()
+            ,   m_rx_on_count()
+            ,   m_tx_on_count()
         {
         }
         virtual int read(uint8_t* buffer, size_t buffer_size)
@@ -72,12 +76,23 @@ namespace UnitTests
             return m_time;
         }
         virtual unsigned long microseconds_per_tick() const { return 1000; }
+        virtual void communicationStatus(bool rx, bool tx)
+        {
+            if (rx)
+                m_rx_on_count++;
+            if (tx)
+                m_tx_on_count++;
+            m_rx_status = rx;
+            m_tx_status = tx;
+        }
         void increment(system_tick_t value)
         {
             m_time += value;
         }
         void written(std::vector<std::tr1::tuple<system_tick_t /*start*/, std::string /*data*/> >& result) const { result = m_write; }
         std::string write_data;
+        bool m_rx_status, m_tx_status;
+        int m_rx_on_count, m_tx_on_count;
     private:
         system_tick_t m_time, m_last_write;
         size_t m_pos, m_col;
@@ -88,25 +103,7 @@ namespace UnitTests
     [TestClass]
     public ref class RTUTests
     {
-    private:
-        TestContext^ testContextInstance;
-
     public: 
-        /// <summary>
-        ///Gets or sets the test context which provides
-        ///information about and functionality for the current test run.
-        ///</summary>
-        property Microsoft::VisualStudio::TestTools::UnitTesting::TestContext^ TestContext
-        {
-            Microsoft::VisualStudio::TestTools::UnitTesting::TestContext^ get()
-            {
-                return testContextInstance;
-            }
-            System::Void set(Microsoft::VisualStudio::TestTools::UnitTesting::TestContext^ value)
-            {
-                testContextInstance = value;
-            }
-        };
 
         [TestMethod]
         void TestRTUConstructor()
@@ -116,6 +113,10 @@ namespace UnitTests
             CModbusRTU rtu(&stream, &stream, buffer, _countof(buffer));
             rtu.setup(9600);
             Assert::AreEqual(true, true);
+            Assert::AreEqual(false, stream.m_rx_status);
+            Assert::AreEqual(false, stream.m_tx_status);
+            Assert::AreEqual(0, stream.m_rx_on_count);
+            Assert::AreEqual(0, stream.m_tx_on_count);
         };
 
         [TestMethod]
@@ -147,6 +148,10 @@ namespace UnitTests
             Assert::AreEqual((byte)2, rtu.frame_address());
             Assert::AreEqual(1u, rtu.buffer_len());
             Assert::AreEqual((byte)7, rtu.buffer()[0]);
+            Assert::AreEqual(false, stream.m_rx_status);
+            Assert::AreEqual(false, stream.m_tx_status);
+            Assert::AreEqual(1, stream.m_rx_on_count); // the first frame is not counted because it's still starting up
+            Assert::AreEqual(0, stream.m_tx_on_count);
         };
 
         [TestMethod]
@@ -175,6 +180,10 @@ namespace UnitTests
             uint8_t response[] = { 0x03, 0x00, 0x6B, 0x00, 0x03 };
             Assert::AreEqual((size_t)_countof(response), framer.buffer_len());
             Assert::AreEqual(true, std::equal(response, response + _countof(response), framer.buffer()));
+            Assert::AreEqual(false, stream.m_rx_status);
+            Assert::AreEqual(false, stream.m_tx_status);
+            Assert::AreEqual(1, stream.m_rx_on_count);
+            Assert::AreEqual(0, stream.m_tx_on_count);
         };
 
         [TestMethod]
@@ -200,6 +209,8 @@ namespace UnitTests
 
             // check the result
             Assert::AreEqual(false, rtu.frame_ready());
+            Assert::AreEqual(false, stream.m_rx_status);
+            Assert::AreEqual(false, stream.m_tx_status);
         };
 
         [TestMethod]
@@ -238,6 +249,12 @@ namespace UnitTests
             // get the result
             std::vector<std::tr1::tuple<system_tick_t /*start*/, std::string /*data*/> > items;
             stream.written(items);
+
+
+            Assert::AreEqual(false, stream.m_rx_status);
+            Assert::AreEqual(false, stream.m_tx_status);
+            Assert::AreEqual(0, stream.m_rx_on_count);
+            Assert::AreEqual(1, stream.m_tx_on_count);
         }
 
         [TestMethod]
@@ -275,6 +292,10 @@ namespace UnitTests
 
             // check the result
             Assert::AreEqual(gcnew System::String(":1103006B00037E\r\n"), gcnew System::String(stream.write_data.c_str()));
+            Assert::AreEqual(false, stream.m_rx_status);
+            Assert::AreEqual(false, stream.m_tx_status);
+            Assert::AreEqual(0, stream.m_rx_on_count);
+            Assert::AreEqual(1, stream.m_tx_on_count);
         }
     };
 }

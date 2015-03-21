@@ -75,6 +75,16 @@ namespace ModbusPotato
         /// Indicates if all of the characters have been written.
         /// </summary>
         virtual bool writeComplete() = 0;
+
+        /// <summary>
+        /// Provides the user some indication that a frame is being sent or received.
+        /// </summary>
+        /// <remarks>
+        /// This is to be used as an indication only of the receive and
+        /// transmit status, and may not accurately reflect the state of the
+        /// data lines.
+        /// </remarks>
+        virtual void communicationStatus(bool rx, bool tx) = 0;
     };
 
     /// <summary>

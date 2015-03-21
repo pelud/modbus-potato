@@ -77,6 +77,7 @@ namespace ModbusPotato
             state_tx_addr,
             state_tx_pdu,
             state_tx_crc,
+            state_tx_drain,
             state_tx_wait,
         };
         state_type m_state;

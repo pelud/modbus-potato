@@ -116,36 +116,37 @@ namespace ModbusPotato
     {
         // state machine for handling incoming data
         //
-        //                       -------------          -------------
-        //           +--Sent-->|   TX CRC    |--Sent-->|   TX Wait   |--done--+    start
-        //           |           -------------          -------------         |      |
-        //     -------------                                                  v      v
-        //    |   TX PDU    |                                               -------------
-        //     -------------                              +----------------|    Dump     |
-        //           ^                                    |                 -------------
-        //           |                                  T3.5                      |
-        //         Sent         +----begin_send()---+     |                       |
-        //           |          |                   |     v                       |
-        //     -------------    |                -------------                    |
-        //    |   TX Addr   |   |     +-------->|    Idle     |---Invalid Char--->+
-        //     -------------    |     |          -------------                    ^
-        //         ^            |     |                |                          |
-        //         |     +------+     |          Address Match                    |
-        //       send()  |            |                |                          |
-        //         |     v            |                v                          |
+        //                    -------------           -------------
+        //        +--Sent--->|   TX CRC    |    +--->|   TX Wait   |
+        //        |           -------------     |     -------------
+        //        |                 |           |           |
+        //  -------------         Sent      TX Empty      T3.5                  start
+        // |   TX PDU    |          |           |           |                     |
+        //  -------------           v           |           |                     v
+        //        ^           -------------     |           v               -------------
+        //        |          |  TX Drain   |----+    +------+<----T3.5-----|    Dump     |
+        //      Sent          -------------          |                      ------------- 
+        //        |                                  v                            ^
+        //  -------------                      -------------                      |
+        // |   TX Addr   |   +--begin_send()--|    Idle     |----Invalid Char---->+
+        //  -------------    |                 -------------                      ^
+        //        ^          |                   ^       |                        |
+        //        |      +---+                   |  Addr. Match                   |
+        //      send()   |            +----------+       |                        |
+        //        |      v            |                  v                        |
         //     -------------  fini-   |   T3.5+  -------------                    |
-        //  +-|    Queue    |-shed()->+<--CRC/--|   Receive   |---T1.5/Comm Err-->+
-        //  |  -------------          ^   F.E.   -------------                    ^
-        //  |        ^                |                |                          |
-        //  |        |                |          T3.5+Frame OK            finished()/send()
-        //  |   begin_send()      finished()           |                          |
-        //  |        |                |                v                          |
-        //  |        |                |          -------------              ------------- 
-        //  |        +----------------+---------| Frame Ready |--Receive-->|  Collision  |
-        //  |                                    -------------              -------------
-        //  |                                                                     ^
-        //  |                                                                     |
-        //  +----Receive----------------------------------------------------------+
+        //    |    Queue    |-shed()->+<--CRC/--|   Receive   |---T1.5/Comm Err-->+
+        //     -------------          ^   F.E.   -------------                    ^
+        //       |      ^             |                |                          |
+        //       |      |             |          T3.5+Frame OK           finished()/send()
+        //       | begin_send()   finished()           |                          |
+        //       |      |             |                v                          |
+        //       |      |             |          -------------              ------------- 
+        //       |      +-------------+---------| Frame Ready |--Receive-->|  Collision  |
+        //       |                               -------------              -------------
+        //    Receive                                                             ^
+        //       |                                                                |
+        //       +----------------------------------------------------------------+
         //
         // See http://www.modbus.org/docs/Modbus_over_serial_line_V1_02.pdf
         //
@@ -174,6 +175,7 @@ dump:
                 if (elapsed >= m_T3p5)
                 {
                     m_state = state_idle;
+                    m_stream->communicationStatus(false, false);
                     goto idle; // waiting for an event
                 }
 
@@ -199,6 +201,7 @@ idle:
                         // invalid character received - reset the timer and enter the 'dump' state.
                         m_last_ticks = m_timer->ticks();
                         m_state = state_dump;
+                        m_stream->communicationStatus(true, false);
                         goto dump; // enter the dump state
                     }
 
@@ -209,15 +212,15 @@ idle:
                     m_state = state_receive;
                     m_buffer_len = 0;
                     m_last_ticks = m_timer->ticks();
-                    goto _receive; // enter the _receive state
+                    m_stream->communicationStatus(true, false);
+                    goto receive; // enter the receive state
                 }
                 return 0; // waiting for an event
             }
         case state_frame_ready: // waiting for the application layer to process the frame
         case state_queue: // waiting for the application layer to create frame for transmission
-        case state_collision: // bus collision
             {
-                // check for timeout or collisions
+                // check for collisions
                 //
                 // If this happens in the frame_ready state then it means that
                 // the master probably thinks that the slave timed out and is
@@ -228,11 +231,16 @@ idle:
                 {
                     m_state = state_collision;
                     m_last_ticks = m_timer->ticks();
+                    m_stream->communicationStatus(true, false);
                 }
                 return 0; // waiting for user
             }
+        case state_collision: // bus collision
+            {
+                return 0; // waiting for user
+            }
         case state_receive: // actively receiving new data
-_receive:
+receive:
             {
                 // check how much time has elapsed
                 system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
@@ -289,6 +297,7 @@ _receive:
                     // if the CRC failed, then dump the frame and go back to idle
                     m_last_ticks = m_timer->ticks();
                     m_state = state_idle;
+                    m_stream->communicationStatus(false, false);
                     goto idle; // enter the idle state
                 }
 
@@ -298,6 +307,7 @@ _receive:
                 // move to the 'Frame Ready' state
                 m_state = state_frame_ready;
                 m_last_ticks = m_timer->ticks();
+                m_stream->communicationStatus(false, false);
 
                 // execute the callback
                 if (m_handler)
@@ -320,6 +330,7 @@ _receive:
                     // reset the timer and go to the dump state
                     m_last_ticks = m_timer->ticks();
                     m_state = state_dump;
+                    m_stream->communicationStatus(true, false);
                     goto dump; // dump any remaining data
                 }
 
@@ -345,6 +356,7 @@ _receive:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -367,6 +379,7 @@ tx_pdu:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -405,6 +418,7 @@ tx_crc:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -416,17 +430,17 @@ tx_crc:
                 // dump our own echo
                 m_stream->read(NULL, (size_t)-1);
 
-                // check if we should enter the 'TX Wait' state
+                // check if we should enter the 'TX Drain' state
                 if (m_buffer_tx_pos == CRC_LEN)
                 {
-                    m_state = state_tx_wait;
-                    goto tx_wait; // enter the 'TX Wait' state
+                    m_state = state_tx_drain;
+                    goto tx_drain; // enter the 'TX Drain' state
                 }
 
                 return 0; // waiting for room in the write buffer
             }
-        case state_tx_wait: // waiting for the characters to finish transmitting
-tx_wait:
+        case state_tx_drain: // waiting for the characters to finish transmitting
+tx_drain:
             {
                 // dump our own echo
                 m_stream->read(NULL, (size_t)-1);
@@ -437,15 +451,31 @@ tx_wait:
                     // transmission complete; disable the RS-485 transmitter
                     m_stream->txEnable(false);
 
-                    // go to the dump state so we can dump our own echo in addition to waiting for the T3.5 delay
+                    // go to the tx wait state so we can wait for the T3.5 delay
                     m_last_ticks = m_timer->ticks();
-                    m_state = state_dump;
-                    goto dump;
+                    m_state = state_tx_wait;
+                    m_stream->communicationStatus(false, false);
+                    goto tx_wait;
                 }
 
                 return 0; // waiting for write buffer to drain
             }
-       }
+        case state_tx_wait: // waiting for final T3.5 delay after transmitting
+tx_wait:
+            {
+                // dump our own echo
+                m_stream->read(NULL, (size_t)-1);
+
+                // check if the T3.5 timer has elapsed
+                system_tick_t elapsed = ELAPSED(m_last_ticks, m_timer->ticks());
+                if (elapsed < m_T3p5)
+                    return m_T3p5 - elapsed; // wait for the timer to elapse
+
+                // TX done! go to the idle state
+                m_state = state_idle;
+                goto idle;
+            }
+        }
 
         // if we get here, then something terrible has happened such as memory corruption
         m_state = state_exception;
@@ -490,6 +520,7 @@ tx_wait:
             {
                 // enter the transmit station address state
                 m_state = state_tx_addr;
+                m_stream->communicationStatus(false, true);
 
                 // enable the transmitter
                 m_stream->txEnable(true);

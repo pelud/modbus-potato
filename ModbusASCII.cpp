@@ -84,6 +84,7 @@ idle:
                         // if so, go to the ascii rx address high state
                         m_state = state_rx_addr_high;
                         m_last_ticks = m_timer->ticks();
+                        m_stream->communicationStatus(true, false);
                         goto rx_addr;
                     }
                 }
@@ -91,9 +92,8 @@ idle:
             }
         case state_frame_ready: // waiting for the application layer to process the frame
         case state_queue: // waiting for the application layer to create frame for transmission
-        case state_collision: // bus collision
             {
-                // check for timeout or collisions
+                // check for collisions
                 //
                 // If this happens in the frame_ready state then it means that
                 // the master probably thinks that the slave timed out and is
@@ -104,7 +104,12 @@ idle:
                 {
                     m_state = state_collision;
                     m_last_ticks = m_timer->ticks();
+                    m_stream->communicationStatus(true, false);
                 }
+                return 0; // waiting for user
+            }
+        case state_collision: // bus collision
+            {
                 return 0; // waiting for user
             }
         case state_rx_addr_high: // receiving the high or low byte of the slave address [ASCII]
@@ -117,6 +122,7 @@ rx_addr:
                 {
                     // timeout, go to the idle state
                     m_state = state_idle;
+                    m_stream->communicationStatus(false, false);
                     goto idle; // enter the 'idle' state
                 }
 
@@ -127,6 +133,7 @@ rx_addr:
                 {
                     // read error, go to the idle state
                     m_state = state_idle;
+                    m_stream->communicationStatus(false, false);
                     goto idle; // enter the 'idle' state
                 }
 
@@ -173,6 +180,7 @@ rx_addr:
                 {
                     // no match, go back to the idle state
                     m_state = state_idle;
+                    m_stream->communicationStatus(false, false);
                     goto idle;
                 }
 
@@ -196,6 +204,7 @@ rx_pdu:
                     {
                         // timeout, go to the idle state
                         m_state = state_idle;
+                        m_stream->communicationStatus(false, false);
                         goto idle; // enter the 'idle' state
                     }
 
@@ -206,6 +215,7 @@ rx_pdu:
                     {
                         // read error, go to the idle state
                         m_state = state_idle;
+                        m_stream->communicationStatus(false, false);
                         goto idle; // enter the 'idle' state
                     }
 
@@ -244,6 +254,7 @@ rx_pdu:
                     {
                         // invalid character or too many characters, go to the idle state
                         m_state = state_idle;
+                        m_stream->communicationStatus(false, false);
                         goto idle; // enter the 'idle' state
                     }
 
@@ -282,6 +293,7 @@ rx_cr:
                 {
                     // timeout, go to the idle state
                     m_state = state_idle;
+                    m_stream->communicationStatus(false, false);
                     goto idle; // enter the 'idle' state
                 }
 
@@ -292,6 +304,7 @@ rx_cr:
                 {
                     // read error, go to the idle state
                     m_state = state_idle;
+                    m_stream->communicationStatus(false, false);
                     goto idle; // enter the 'idle' state
                 }
 
@@ -313,6 +326,7 @@ rx_cr:
                 {
                     // if not, drop the packet and go back to the 'idle' state
                     m_state = state_idle;
+                    m_stream->communicationStatus(false, false);
                     goto idle; // enter the 'idle' state
                 }
 
@@ -321,6 +335,7 @@ rx_cr:
 
                 // move to the 'Frame Ready' state
                 m_state = state_frame_ready;
+                m_stream->communicationStatus(false, false);
                 m_last_ticks = m_timer->ticks();
 
                 // execute the callback
@@ -340,6 +355,7 @@ rx_cr:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -364,6 +380,7 @@ tx_addr_high:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -389,6 +406,7 @@ tx_addr_low:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -414,6 +432,7 @@ tx_pdu_high:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -439,6 +458,7 @@ tx_pdu_low:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -477,6 +497,7 @@ tx_lrc_high:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -501,6 +522,7 @@ tx_lrc_low:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -522,6 +544,7 @@ tx_cr:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -543,6 +566,7 @@ tx_lf:
                     if (ec < 0)
                     {
                         m_state = state_exception;
+                        m_stream->communicationStatus(false, false);
                         return 0; // fatal exception
                     }
 
@@ -567,6 +591,7 @@ tx_wait:
 
                     // done! go to the idle state
                     m_state = state_idle;
+                    m_stream->communicationStatus(false, false);
                     goto idle;
                 }
 
@@ -617,6 +642,7 @@ tx_wait:
             {
                 // enter the transmit start of frame state
                 m_state = state_tx_sof;
+                m_stream->communicationStatus(false, true);
 
                 // enable the transmitter
                 m_stream->txEnable(true);

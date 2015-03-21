@@ -24,6 +24,7 @@ namespace ModbusPotato
         virtual int write(uint8_t* buffer, size_t len);
         virtual void txEnable(bool state);
         virtual bool writeComplete();
+        virtual void communicationStatus(bool rx, bool tx) {}
     private:
         int availableForWrite();
         HardwareSerial* m_serial;
